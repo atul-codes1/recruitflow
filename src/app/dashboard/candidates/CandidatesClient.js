@@ -264,8 +264,8 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                       </div>
                     </td>
                     <td>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-surface-300)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                        <span style={{ opacity: 0.7 }}>📱</span> {app.parsed_data?.phone || app.candidate_phone || 'N/A'}
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-surface-300)', display: 'flex', alignItems: 'center', gap: '0.375rem', whiteSpace: 'nowrap' }}>
+                        <span style={{ opacity: 0.7 }}>📱</span> {(app.parsed_data?.phone || app.candidate_phone || 'N/A').replace(/\n/g, '').trim()}
                       </div>
                     </td>
                     <td>
@@ -280,7 +280,7 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                             {app.experience_level}
                           </div>
                         )}
-                        {app.parsed_data?.experience_years && (
+                        {(app.parsed_data?.experience_years !== null && app.parsed_data?.experience_years !== undefined) && (
                           <div style={{ fontSize: '0.65rem', color: 'var(--color-surface-400)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                             <span style={{ color: '#8b5cf6' }}>✨</span> AI: {app.parsed_data.experience_years} yrs
                           </div>
