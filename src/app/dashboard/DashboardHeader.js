@@ -22,6 +22,7 @@ export default function DashboardHeader() {
 
   const navLinks = [
     { href: '/dashboard', icon: '📊', label: 'Overview' },
+    { href: '/dashboard/search', icon: '🧠', label: 'AI Search' },
     { href: '/dashboard/candidates', icon: '👥', label: 'Candidates' },
     { href: '/dashboard/jobs', icon: '💼', label: 'Jobs' },
     { href: '/dashboard/settings', icon: '⚙️', label: 'Settings' },
@@ -82,11 +83,8 @@ export default function DashboardHeader() {
         {/* Right Side */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
           <div className="hide-on-mobile" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-            <Link href="/" target="_blank" className="btn-secondary btn-sm">
-              Public Portal ↗
-            </Link>
             <div 
-              style={{ position: 'relative', paddingLeft: '1.5rem', borderLeft: '1px solid var(--border-light)' }}
+              style={{ position: 'relative' }}
               onMouseEnter={() => setIsDropdownOpen(true)}
               onMouseLeave={() => setIsDropdownOpen(false)}
             >
@@ -109,6 +107,7 @@ export default function DashboardHeader() {
                   <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-surface-100)', lineHeight: 1 }}>Recruiter</span>
                   <span style={{ fontSize: '0.6875rem', color: 'var(--color-surface-400)', lineHeight: 1, marginTop: '0.25rem' }}>Admin</span>
                 </div>
+                <span style={{ fontSize: '0.625rem', color: 'var(--color-surface-500)', transition: 'transform 0.2s', transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
               </div>
 
               {/* Dropdown Menu */}
@@ -125,10 +124,35 @@ export default function DashboardHeader() {
                     border: '1px solid var(--border-light)',
                     borderRadius: 'var(--radius-md)',
                     boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
-                    minWidth: '150px',
+                    minWidth: '180px',
                     overflow: 'hidden',
-                    animation: 'fadeIn 0.15s ease-out'
+                    animation: 'fadeIn 0.15s ease-out',
+                    backdropFilter: 'blur(16px)',
                   }}>
+                    <Link 
+                      href="/" 
+                      target="_blank"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        width: '100%',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-surface-200)',
+                        padding: '0.75rem 1rem',
+                        fontSize: '0.875rem',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s',
+                        textDecoration: 'none',
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-active)'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                    >
+                      <span style={{ fontSize: '1rem' }}>🌐</span> Public Portal ↗
+                    </Link>
+                    <div style={{ height: '1px', background: 'var(--border-light)' }}></div>
                     <button 
                       onClick={handleLogout}
                       style={{

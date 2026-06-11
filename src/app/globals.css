@@ -451,13 +451,27 @@ body {
   border: 1px solid var(--badge-yellow-border);
 }
 
+.badge-uploading {
+  color: var(--badge-blue-text);
+  background: var(--badge-blue-bg);
+  border: 1px solid var(--badge-blue-border);
+  opacity: 0.8;
+  animation: pulse 1.5s infinite;
+}
+
+.badge-queued {
+  color: var(--badge-yellow-text);
+  background: var(--badge-yellow-bg);
+  border: 1px solid var(--badge-yellow-border);
+}
+
 .badge-shortlisted {
   color: var(--badge-green-text);
   background: var(--badge-green-bg);
   border: 1px solid var(--badge-green-border);
 }
 
-.badge-rejected {
+.badge-rejected, .badge-failed {
   color: var(--badge-red-text);
   background: var(--badge-red-bg);
   border: 1px solid var(--badge-red-border);

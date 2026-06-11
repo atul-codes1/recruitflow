@@ -1,9 +1,7 @@
-import { NextResponse, after } from 'next/server';
-import { getJobBySlug, createApplication, updateApplication } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { getJobBySlug, createApplication } from '@/lib/db';
 import { uploadToGoogleDrive } from '@/lib/gdrive';
-import { parseResume } from '@/lib/parser';
-import pdfParse from 'pdf-parse';
-import mammoth from 'mammoth';
+import { Client } from "@upstash/qstash";
 
 export async function POST(request) {
   try {
@@ -26,84 +24,75 @@ export async function POST(request) {
     const buffer = Buffer.from(arrayBuffer);
 
     // Create a safe filename
-    const ext = resume.name.split('.').pop() || 'pdf';
+    // Validate file type (Only PDF / DOCX allowed)
+    const ext = (resume.name.split('.').pop() || 'pdf').toLowerCase();
+    const allowedExts = ['pdf', 'docx'];
+    if (!allowedExts.includes(ext)) {
+      return NextResponse.json({ error: 'Invalid file type. Only PDF and DOCX files are allowed. Images are rejected.' }, { status: 400 });
+    }
+
     const randomId = Math.random().toString(36).substring(2, 9);
     const fileName = `resume-${randomId}-${Date.now()}.${ext}`;
+    // ======================================================
+    // STEP 1: Upload directly to Google Drive (Synchronous)
+    // ======================================================
+    console.log(`[Apply] Uploading ${fileName} to Google Drive...`);
+    const uploadResult = await uploadToGoogleDrive(buffer, fileName, jobSlug);
+    
+    if (!uploadResult || !uploadResult.success) {
+       return NextResponse.json({ error: 'Failed to safely upload resume. Please try again.' }, { status: 500 });
+    }
 
     // ======================================================
-    // STEP 1: Create a SKELETON record instantly (< 1 second)
+    // STEP 2: Fast Database Insert (Mark as Queued)
     // ======================================================
     const application = await createApplication({
       job_id: job.id,
-      candidate_name: 'Processing...',
+      candidate_name: 'Processing Resume...',
       candidate_email: '',
       candidate_phone: '',
       resume_filename: fileName,
-      drive_file_id: '',
-      drive_web_url: '',
-      local_path: '',
+      drive_file_id: uploadResult.drive_file_id || '',
+      drive_web_url: uploadResult.drive_web_url || '',
+      local_path: uploadResult.local_path || '',
       experience_level: experienceLevel,
       experience_years: null,
       skills: [],
       parsed_data: null,
-      status: 'unreviewed',
+      status: 'unreviewed', 
+      ai_status: 'queued', // Tell the dashboard it's waiting in line
     });
 
     // ======================================================
-    // STEP 2: Schedule the heavy work to run AFTER the response
-    //         using Next.js after() — this keeps the runtime alive
+    // STEP 3: Push to Upstash Queue
     // ======================================================
-    after(async () => {
-      try {
-        let mimeType = 'application/pdf';
-        if (ext.toLowerCase() === 'png') mimeType = 'image/png';
-        if (ext.toLowerCase() === 'jpg' || ext.toLowerCase() === 'jpeg') mimeType = 'image/jpeg';
-
-        // Run Google Drive upload and AI parsing in parallel
-        const uploadPromise = uploadToGoogleDrive(buffer, fileName, jobSlug);
-
-        const parsePromise = (async () => {
-          try {
-            let text = '';
-            if (ext.toLowerCase() === 'pdf') {
-              const pdfData = await pdfParse(buffer);
-              text = pdfData.text;
-            } else if (ext.toLowerCase() === 'docx') {
-              const docxData = await mammoth.extractRawText({ buffer });
-              text = docxData.value;
-            }
-            console.log(`[Parser] Extracted ${text.length} characters from ${ext} file.`);
-            return await parseResume(text, buffer, mimeType);
-          } catch (err) {
-            console.error('[Background] Document parsing error:', err);
-            return null;
-          }
-        })();
-
-        const [uploadResult, parsedData] = await Promise.all([uploadPromise, parsePromise]);
-
-        // Enrich the skeleton record with the full AI-parsed data
-        await updateApplication(application.id, {
-          candidate_name: parsedData?.full_name || 'Unknown Candidate',
-          candidate_email: parsedData?.email || '',
-          candidate_phone: parsedData?.phone || '',
-          drive_file_id: uploadResult?.drive_file_id || '',
-          drive_web_url: uploadResult?.drive_web_url || '',
-          local_path: uploadResult?.local_path || '',
-          experience_years: parsedData?.experience_years || null,
-          skills: parsedData?.skills || [],
-          parsed_data: parsedData || null,
+    try {
+      const qstashToken = process.env.QSTASH_TOKEN;
+      if (!qstashToken) {
+        console.warn('[Apply] QSTASH_TOKEN not found! Queue push failed. You must configure Upstash.');
+      } else {
+        const qstash = new Client({ token: qstashToken });
+        
+        // Determine the absolute URL of the worker
+        // On localhost this is tricky without ngrok, but in prod Vercel gives us proper URLs
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || request.headers.get('origin') || 'http://localhost:3000';
+        
+        await qstash.publishJSON({
+          url: `${baseUrl}/api/worker/process-resume`,
+          body: {
+            applicationId: application.id,
+            drive_file_id: uploadResult.drive_file_id || '',
+            fileName,
+            jobSlug,
+            ext,
+          },
         });
-
-        console.log(`[Background] Application ${application.id} fully processed.`);
-      } catch (err) {
-        console.error('[Background] Failed to process application:', err);
+        console.log(`[Apply] Successfully pushed Application ${application.id} to QStash.`);
       }
-    });
+    } catch (qErr) {
+      console.error('[Apply] Failed to push to QStash:', qErr);
+    }
 
-    // ======================================================
-    // STEP 3: RESPOND TO THE USER IMMEDIATELY
-    // ======================================================
     return NextResponse.json({ success: true, applicationId: application.id });
 
   } catch (error) {

@@ -140,6 +140,7 @@ export async function createApplication(data) {
     local_path: data.local_path || '',
     parsed_data: data.parsed_data || null,
     status: data.status || 'unreviewed',
+    ai_status: data.ai_status || 'completed',
     notes: data.recruiter_notes || '',
   };
 

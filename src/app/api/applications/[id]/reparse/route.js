@@ -1,12 +1,7 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { getApplicationById, updateApplication } from '@/lib/db';
-import { downloadFromGoogleDrive } from '@/lib/gdrive';
-import { parseResume } from '@/lib/parser';
-import pdfParse from 'pdf-parse';
-import mammoth from 'mammoth';
-import fs from 'fs';
-import path from 'path';
+import { Client } from "@upstash/qstash";
 
 export async function POST(request, { params }) {
   try {
@@ -18,56 +13,46 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
     }
 
-    let buffer;
-    if (application.local_path) {
-      // Read locally
-      const fullPath = path.join(process.cwd(), application.local_path);
-      if (fs.existsSync(fullPath)) {
-        buffer = fs.readFileSync(fullPath);
-      }
-    } else if (application.drive_file_id) {
-      // Download from Google Drive
-      buffer = await downloadFromGoogleDrive(application.drive_file_id);
+    if (!application.drive_file_id) {
+       return NextResponse.json({ error: 'No PDF found in Google Drive to reparse' }, { status: 400 });
     }
 
-    if (!buffer) {
-      return NextResponse.json({ error: 'Resume file not found' }, { status: 404 });
-    }
-
-    const ext = application.resume_filename.split('.').pop() || 'pdf';
-    let mimeType = 'application/pdf';
-    if (ext.toLowerCase() === 'png') mimeType = 'image/png';
-    if (ext.toLowerCase() === 'jpg' || ext.toLowerCase() === 'jpeg') mimeType = 'image/jpeg';
-
-    let text = '';
-    if (ext.toLowerCase() === 'pdf') {
-      const pdfData = await pdfParse(buffer);
-      text = pdfData.text;
-    } else if (ext.toLowerCase() === 'docx') {
-      const docxData = await mammoth.extractRawText({ buffer });
-      text = docxData.value;
-    }
-
-    console.log(`[Reparse] Extracted ${text.length} characters.`);
-    const parsedData = await parseResume(text, buffer, mimeType);
-
-    if (!parsedData) {
-      return NextResponse.json({ error: 'Gemini Parsing Failed Again' }, { status: 500 });
-    }
-
-    const updated = await updateApplication(application.id, {
-      candidate_name: parsedData.full_name || 'Unknown Candidate',
-      candidate_email: parsedData.email || '',
-      candidate_phone: parsedData.phone || '',
-      experience_years: parsedData.experience_years || null,
-      skills: parsedData.skills || [],
-      parsed_data: parsedData
+    // Mark as queued again
+    await updateApplication(application.id, {
+       ai_status: 'queued'
     });
+
+    try {
+      const qstashToken = process.env.QSTASH_TOKEN;
+      if (!qstashToken) {
+        return NextResponse.json({ error: 'QSTASH_TOKEN missing. Cannot reparse.' }, { status: 500 });
+      }
+
+      const qstash = new Client({ token: qstashToken });
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || request.headers.get('origin') || 'http://localhost:3000';
+      
+      const ext = application.resume_filename.split('.').pop() || 'pdf';
+
+      await qstash.publishJSON({
+        url: `${baseUrl}/api/worker/process-resume`,
+        body: {
+          applicationId: application.id,
+          drive_file_id: application.drive_file_id,
+          fileName: application.resume_filename,
+          jobSlug: '', // we don't strictly need job slug for reparse
+          ext,
+        },
+      });
+      console.log(`[Reparse] Successfully pushed Application ${application.id} to QStash.`);
+    } catch (qErr) {
+      console.error('[Reparse] Failed to push to QStash:', qErr);
+      return NextResponse.json({ error: 'Failed to trigger queue' }, { status: 500 });
+    }
 
     revalidatePath('/dashboard/candidates');
     revalidatePath('/dashboard');
 
-    return NextResponse.json({ success: true, application: updated });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Reparse error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

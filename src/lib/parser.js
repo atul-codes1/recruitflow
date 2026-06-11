@@ -10,6 +10,22 @@
 
 import fetch from 'cross-fetch';
 
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function fetchWithRetry(url, options, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    const response = await fetch(url, options);
+    if (response.status === 429) {
+      const waitTime = (i + 1) * 30000; // Wait 30s, 60s, 90s
+      console.warn(`[Parser] Gemini Rate Limit (429) hit. Waiting in queue for ${waitTime / 1000}s... (Attempt ${i + 1}/${maxRetries})`);
+      await delay(waitTime);
+      continue;
+    }
+    return response;
+  }
+  return fetch(url, options); // Final fallback attempt
+}
+
 /**
  * Extract structured data from resume text using regex (always free).
  */
@@ -47,120 +63,300 @@ export function extractWithRegex(text) {
   }
 
   return {
-    full_name: name,
-    email: emails[0] || '',
-    phone: phones[0] ? phones[0].replace(/\s+/g, ' ').trim() : '',
-    linkedin_url: linkedinUrls[0] || '',
-    current_title: '',
-    current_company: '',
-    experience_years: null,
-    skills: [],
+    candidate: {
+      name: name,
+      contact: {
+        email: emails[0] || null,
+        phone: phones[0] ? phones[0].replace(/\s+/g, ' ').trim() : null,
+        location: null,
+        social_links: linkedinUrls[0] ? [{ platform: "LinkedIn", url: linkedinUrls[0] }] : []
+      }
+    },
+    professional_narrative: {
+      summary: null,
+      years_of_experience_calculated: null,
+      current_seniority_level: null
+    },
+    experience: [],
     education: [],
-    location: '',
-    summary: '',
+    projects: [],
+    competencies: {
+      hard_skills: [],
+      soft_skills: [],
+      domain_expertise: [],
+      languages_spoken: []
+    },
+    certifications: [],
+    custom_sections: [],
+    raw_overflow_bin: null
   };
 }
 
+let cachedGeminiModels = null;
+async function getAvailableGeminiModels(apiKey) {
+  if (cachedGeminiModels) return cachedGeminiModels;
+  
+  try {
+    console.log('[Parser] Dynamically fetching OCR models from Google API...');
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    if (!response.ok) return ['gemini-flash-latest']; // Ultimate fallback
+    
+    const data = await response.json();
+    const models = data.models
+      .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+      .map(m => m.name.replace('models/', ''));
+      
+    // Sort so 'flash' comes first, then 'pro'
+    const sorted = models.sort((a, b) => {
+      const aScore = a.includes('flash') ? 2 : (a.includes('pro') ? 1 : 0);
+      const bScore = b.includes('flash') ? 2 : (b.includes('pro') ? 1 : 0);
+      return bScore - aScore;
+    });
+    
+    cachedGeminiModels = sorted.length > 0 ? sorted : ['gemini-flash-latest'];
+    console.log(`[Parser] Found ${cachedGeminiModels.length} active models. Top picks: ${cachedGeminiModels.slice(0, 3).join(', ')}`);
+    return cachedGeminiModels;
+  } catch (err) {
+    console.error('[Parser] Failed to dynamically fetch Gemini models:', err);
+    return ['gemini-flash-latest'];
+  }
+}
+
 /**
- * Parse resume using Google Gemini Flash API (free tier).
+ * Perform pure OCR on a scanned PDF or image using Gemini Multimodal.
+ * We only use this as a fallback for the 5% of documents that pdf-parse cannot read.
  */
-export async function parseWithGemini(text, buffer = null, mimeType = null) {
+export async function performOcrWithGemini(buffer, mimeType) {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    console.log('No GEMINI_API_KEY found, falling back to regex-only parsing');
+  if (!apiKey) return '';
+
+  const prompt = "You are an OCR engine. Extract ALL text from this document exactly as it appears. Do not format it or summarize it. Just return the raw text.";
+
+  const modelsToTry = await getAvailableGeminiModels(apiKey);
+
+  const requestBody = {
+    contents: [{ 
+      parts: [
+        { text: prompt },
+        { inlineData: { mimeType: mimeType, data: buffer.toString('base64') } }
+      ]
+    }],
+    generationConfig: {
+      temperature: 0.1,
+      maxOutputTokens: 8192,
+    },
+  };
+
+  for (const model of modelsToTry) {
+    try {
+      console.log(`[OCR] Attempting OCR with model: ${model}...`);
+      const response = await fetchWithRetry(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (!response.ok) {
+        console.error(`[OCR] ${model} API error:`, response.status, await response.text());
+        // If 503, loop continues to the next fallback model instantly!
+        if (response.status === 503) {
+          console.warn(`[OCR] ${model} is overloaded (503). Instantly falling back to next model...`);
+          continue;
+        }
+        return ''; // Other fatal errors stop the process
+      }
+
+      const data = await response.json();
+      const extractedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      console.log(`[OCR] Success using ${model}!`);
+      return extractedText;
+    } catch (error) {
+      console.error(`[OCR] Request failed for ${model}:`, error);
+      continue;
+    }
+  }
+
+  // If both models fail
+  return '';
+}
+
+/**
+ * Parse resume pure text using Google Gemini Flash API (free tier).
+ * We pass ONLY text (not the heavy PDF buffer) to save quota and increase speed.
+ */
+export async function parseTextWithAi(text) {
+  const groqKey = process.env.GROQ_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY;
+
+  if (!groqKey && !geminiKey) {
+    console.log('No AI API keys found, falling back to regex-only parsing');
     return null;
   }
 
-  const prompt = `Extract the following information from this resume document. Return ONLY valid JSON, no markdown formatting, no code blocks.
+  const prompt = `You are a resume parsing engine. Extract ALL of the following information from this resume text. Return ONLY valid JSON matching this exact structure, no markdown formatting, no code blocks.
 
 {
-  "full_name": "candidate's full name",
-  "email": "email address",
-  "phone": "phone number",
-  "current_title": "current or most recent job title",
-  "current_company": "current or most recent company",
-  "experience_years": number or null,
-  "skills": ["skill1", "skill2"],
-  "education": [{"degree": "degree name", "institution": "school name", "year": "graduation year"}],
-  "location": "city, state/country",
-  "linkedin_url": "linkedin profile URL if present",
-  "summary": "2-3 sentence professional summary"
+  "candidate": {
+    "name": "string",
+    "contact": {
+      "email": "string | null",
+      "phone": "string | null",
+      "location": { "raw": "string", "parsed_city": "string", "country": "string" },
+      "social_links": [{"platform": "string", "url": "string"}] 
+    }
+  },
+  "professional_narrative": {
+    "summary": "string | null",
+    "years_of_experience_calculated": "number | null",
+    "current_seniority_level": "string | null"
+  },
+  "experience": [
+    {
+      "company": "string",
+      "role": "string",
+      "dates": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD | 'Present'" },
+      "location": "string | null",
+      "achievements": [
+        { "text": "string", "metric": "string | null", "context": "string" }
+      ],
+      "tech_stack_or_tools": ["string"],
+      "industry_sector": "string | null"
+    }
+  ],
+  "education": [
+    {
+      "institution": "string",
+      "degree": "string",
+      "field": "string",
+      "year_graduated": "number | null"
+    }
+  ],
+  "projects": [
+    {
+      "project_name": "string",
+      "description": "string | null",
+      "link": "string URL | null",
+      "technologies_used": ["string"]
+    }
+  ],
+  "competencies": {
+    "hard_skills": ["string"],
+    "soft_skills": ["string"],
+    "domain_expertise": ["string"],
+    "languages_spoken": ["string"]
+  },
+  "certifications": [
+    {
+      "name": "string",
+      "issuer": "string | null",
+      "year": "string | null",
+      "link": "string URL | null"
+    }
+  ],
+  "custom_sections": [
+    {
+      "section_name": "string (e.g., Volunteer Work, Patents, Publications)",
+      "content": "string or object"
+    }
+  ],
+  "raw_overflow_bin": "string | null (any unparseable text)"
 }
 
-IMPORTANT: Ensure the output is STRICTLY valid JSON. Do NOT include raw newline characters or unescaped quotes inside string values. Use \\n instead.
+IMPORTANT RULES:
+1. STRICT JSON: Ensure the output is STRICTLY valid JSON. Do NOT include raw newline characters or unescaped quotes inside string values.
+2. MISSING DATA: If a piece of information is not found in the text, you MUST return 'null' for strings/numbers and '[]' for arrays. Do NOT hallucinate or guess.
+3. EXPERIENCE CALCULATION: Carefully calculate 'years_of_experience_calculated' by summing the duration of all professional roles. Do not double-count overlapping dates. If there is no experience, return 0.
+4. METRICS: When parsing 'achievements', if a bullet point contains a number, percentage, or currency (e.g., "Increased sales by 20%"), extract that specific number into the 'metric' field.
+5. OVERFLOW: Any random text, reference details, weird disclaimers, or unstructured data that absolutely does not fit into the schema MUST be dumped into 'raw_overflow_bin'.
+6. DATES: Standardize dates to YYYY-MM. If only a year is provided, use YYYY-01.
 
-${text && text.length > 20 ? `\nExtracted Text (use this if document image is hard to read):\n${text.substring(0, 4000)}` : ''}`;
+Resume Text:
+${text.substring(0, 15000)} // Ensure we cap at a reasonable size
+`;
 
-  try {
-    const parts = [{ text: prompt }];
-
-    // Attach native Multimodal payload
-    if (buffer && mimeType && (mimeType.startsWith('image/') || mimeType === 'application/pdf')) {
-      parts.push({
-        inlineData: {
-          mimeType: mimeType,
-          data: buffer.toString('base64')
-        }
-      });
-    }
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts }],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 2048,
-            responseMimeType: "application/json",
+  // 1. GROQ UNIFIED MULTIPLEXER
+  if (groqKey) {
+    const groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'];
+    
+    for (const model of groqModels) {
+      try {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${groqKey}`,
+            'Content-Type': 'application/json'
           },
-        }),
+          body: JSON.stringify({
+            model: model,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.1,
+            response_format: { type: 'json_object' }
+          })
+        });
+        
+        if (response.status === 429) {
+          console.warn(`[Parser] Groq model ${model} rate limited. Instantly failing over to next model...`);
+          continue; // Instantly jumps to the next model!
+        }
+        
+        if (!response.ok) {
+           console.error(`[Parser] Groq error with ${model}:`, await response.text());
+           continue;
+        }
+        
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content || '';
+        
+        // Clean markdown code blocks if present
+        const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        return JSON.parse(cleaned);
+      } catch (err) {
+        console.warn(`[Parser] Groq JSON parsing failed for ${model}, trying next...`, err.message);
       }
-    );
+    }
+    console.warn(`[Parser] All Groq models exhausted. Falling back to Gemini...`);
+  }
 
-    if (!response.ok) {
-      console.error('Gemini API error:', response.status, await response.text());
+  // 2. GEMINI FALLBACK
+  if (geminiKey) {
+    try {
+      const geminiModels = await getAvailableGeminiModels(geminiKey);
+      const topModel = geminiModels[0];
+      
+      const response = await fetchWithRetry(
+        `https://generativelanguage.googleapis.com/v1beta/models/${topModel}:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 2048,
+              responseMimeType: "application/json",
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        console.error('Gemini Text Parsing API error:', response.status, await response.text());
+        return null;
+      }
+
+      const data = await response.json();
+      const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+      const cleaned = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      return JSON.parse(cleaned);
+    } catch (error) {
+      console.error('Gemini parsing error:', error);
       return null;
     }
-
-    const data = await response.json();
-    const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-    // Clean markdown code blocks if present
-    const cleaned = responseText
-      .replace(/```json\n?/g, '')
-      .replace(/```\n?/g, '')
-      .trim();
-
-    return JSON.parse(cleaned);
-  } catch (error) {
-    console.error('Gemini parsing error:', error);
-    return null;
   }
-}
-
-/**
- * Main parse function — tries Gemini first, falls back to regex.
- */
-export async function parseResume(text, buffer = null, mimeType = null) {
-  // Try AI parsing first (Multimodal)
-  const aiResult = await parseWithGemini(text, buffer, mimeType);
-
-  if (aiResult) {
-    return {
-      ...aiResult,
-      parse_method: 'gemini',
-      parsed_at: new Date().toISOString(),
-    };
-  }
-
-  // Fallback to regex
-  const regexResult = extractWithRegex(text);
-  return {
-    ...regexResult,
-    parse_method: 'regex',
-    parsed_at: new Date().toISOString(),
-  };
+  
+  return null;
 }

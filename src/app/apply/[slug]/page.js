@@ -293,7 +293,7 @@ export default function ApplyPage() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                    accept=".pdf,.doc,.docx"
                     onChange={handleFileChange}
                     style={{ display: 'none' }}
                   />

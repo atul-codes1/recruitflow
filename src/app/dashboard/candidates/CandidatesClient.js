@@ -229,6 +229,7 @@ export default function CandidatesClient({ initialApplications, jobs }) {
             <option value="rejected">Rejected</option>
           </select>
         </div>
+
       </div>
 
       {filteredApps.length === 0 ? (
@@ -258,19 +259,26 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                 return (
                   <tr key={app.id} className="hover-row">
                     <td>
-                      <div style={{ fontWeight: 600, color: 'var(--color-surface-100)', fontSize: '0.875rem', letterSpacing: '0.01em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: app.status === 'hired' ? '#10b981' : app.status === 'rejected' ? '#ef4444' : '#6366f1' }}></div>
-                        {app.parsed_data?.full_name || app.candidate_name || 'Anonymous Applicant'}
+                      <div style={{ fontWeight: 600, color: 'var(--color-surface-100)', fontSize: '0.875rem', letterSpacing: '0.01em', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: app.status === 'hired' ? '#10b981' : app.status === 'rejected' ? '#ef4444' : '#6366f1' }}></div>
+                          {app.parsed_data?.candidate?.name || app.candidate_name || 'Anonymous Applicant'}
+                        </div>
+                        {app.ai_status && app.ai_status !== 'completed' && (
+                          <span className={`badge badge-${app.ai_status}`} style={{ fontSize: '0.65rem', alignSelf: 'flex-start' }}>
+                            {app.ai_status === 'uploading' ? 'Uploading...' : app.ai_status === 'queued' ? 'Queued for AI' : 'AI Failed'}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-surface-300)', display: 'flex', alignItems: 'center', gap: '0.375rem', whiteSpace: 'nowrap' }}>
-                        <span style={{ opacity: 0.7 }}>📱</span> {(app.parsed_data?.phone || app.candidate_phone || 'N/A').replace(/\n/g, '').trim()}
+                        <span style={{ opacity: 0.7 }}>📱</span> {(app.parsed_data?.candidate?.contact?.phone || app.candidate_phone || 'N/A').replace(/\n/g, '').trim()}
                       </div>
                     </td>
                     <td>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-surface-300)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                        <span style={{ opacity: 0.7 }}>📧</span> {app.parsed_data?.email || app.candidate_email || 'N/A'}
+                        <span style={{ opacity: 0.7 }}>📧</span> {app.parsed_data?.candidate?.contact?.email || app.candidate_email || 'N/A'}
                       </div>
                     </td>
                     <td>
@@ -280,9 +288,20 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                             {app.experience_level}
                           </div>
                         )}
-                        {(app.parsed_data?.experience_years !== null && app.parsed_data?.experience_years !== undefined) && (
-                          <div style={{ fontSize: '0.65rem', color: 'var(--color-surface-400)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <span style={{ color: '#8b5cf6' }}>✨</span> AI: {app.parsed_data.experience_years} yrs
+                        {(app.parsed_data?.professional_narrative?.years_of_experience_calculated !== null && app.parsed_data?.professional_narrative?.years_of_experience_calculated !== undefined) && (
+                          <div style={{ 
+                            padding: '0.125rem 0.375rem', 
+                            borderRadius: '4px', 
+                            background: 'rgba(99, 102, 241, 0.1)', 
+                            color: '#a5b4fc', 
+                            fontSize: '0.7rem', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '0.25rem', 
+                            border: '1px solid rgba(99, 102, 241, 0.2)', 
+                            width: 'fit-content' 
+                          }}>
+                            <span style={{ color: '#818cf8' }}>✨</span> AI: {app.parsed_data.professional_narrative.years_of_experience_calculated} yrs
                           </div>
                         )}
                       </div>

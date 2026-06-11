@@ -119,7 +119,7 @@ export async function downloadFromGoogleDrive(fileId) {
 /**
  * Fallback: save file locally when Google Drive is not configured.
  */
-async function saveLocally(fileBuffer, fileName, jobSlug) {
+export async function saveLocally(fileBuffer, fileName, jobSlug) {
   const uploadDir = path.join(process.cwd(), 'data', 'uploads', jobSlug);
   
   if (!fs.existsSync(uploadDir)) {

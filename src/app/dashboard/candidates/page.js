@@ -1,5 +1,6 @@
 import { getAllApplications, getAllJobs } from '@/lib/db';
 import CandidatesClient from './CandidatesClient';
+import PageHeader from './PageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,12 +16,7 @@ export default async function CandidatesPage() {
 
   return (
     <div className="animate-fade">
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 800, fontFamily: 'var(--font-outfit, var(--font-display))', color: 'var(--color-surface-100)', marginBottom: '0.5rem' }}>
-          Candidates Pipeline
-        </h1>
-      </div>
-
+      <PageHeader />
       <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
         {applications.length === 0 ? (
           <div className="empty-state">
