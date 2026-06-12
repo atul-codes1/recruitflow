@@ -88,12 +88,15 @@ export async function POST(request) {
       const qstashToken = process.env.QSTASH_TOKEN;
       if (!qstashToken) {
         console.warn('[Apply] QSTASH_TOKEN not found! Queue push failed. You must configure Upstash.');
+        await updateApplication(application.id, { ai_status: 'failed', notes: 'Upstash QStash is not configured. Missing QSTASH_TOKEN.' });
       } else {
         const qstash = new Client({ token: qstashToken });
         
         // Determine the absolute URL of the worker
         // On localhost this is tricky without ngrok, but in prod Vercel gives us proper URLs
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || request.headers.get('origin') || 'http://localhost:3000';
+        const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+        const host = request.headers.get('host');
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (host ? `${protocol}://${host}` : 'http://localhost:3000');
         
         await qstash.publishJSON({
           url: `${baseUrl}/api/worker/process-resume`,
