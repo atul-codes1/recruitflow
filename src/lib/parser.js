@@ -9,6 +9,66 @@
  */
 
 import fetch from 'cross-fetch';
+import { z } from 'zod';
+
+const ResumeSchema = z.object({
+  candidate: z.object({
+    name: z.string().nullable().default(null),
+    contact: z.object({
+      email: z.string().nullable().default(null),
+      phone: z.string().nullable().default(null),
+      location: z.object({
+        raw: z.string().nullable().default(null),
+        parsed_city: z.string().nullable().default(null),
+        country: z.string().nullable().default(null)
+      }).nullable().default(null),
+      social_links: z.array(z.object({ platform: z.string(), url: z.string() })).default([])
+    }).default({})
+  }).default({}),
+  professional_narrative: z.object({
+    summary: z.string().nullable().default(null),
+    years_of_experience_calculated: z.number().nullable().default(null),
+    current_seniority_level: z.string().nullable().default(null)
+  }).default({}),
+  experience: z.array(z.object({
+    company: z.string().default("Unknown"),
+    role: z.string().default("Unknown"),
+    dates: z.object({ start: z.string().default(""), end: z.string().default("") }).default({}),
+    location: z.string().nullable().default(null),
+    achievements: z.array(z.object({ text: z.string(), metric: z.string().nullable().default(null), context: z.string().default("") })).default([]),
+    tech_stack_or_tools: z.array(z.string()).default([]),
+    industry_sector: z.string().nullable().default(null)
+  })).default([]),
+  education: z.array(z.object({
+    institution: z.string().default("Unknown"),
+    degree: z.string().default("Unknown"),
+    field: z.string().default("Unknown"),
+    year_graduated: z.number().nullable().default(null)
+  })).default([]),
+  projects: z.array(z.object({
+    project_name: z.string().default("Unknown"),
+    description: z.string().nullable().default(null),
+    link: z.string().nullable().default(null),
+    technologies_used: z.array(z.string()).default([])
+  })).default([]),
+  competencies: z.object({
+    hard_skills: z.array(z.string()).default([]),
+    soft_skills: z.array(z.string()).default([]),
+    domain_expertise: z.array(z.string()).default([]),
+    languages_spoken: z.array(z.string()).default([])
+  }).default({}),
+  certifications: z.array(z.object({
+    name: z.string().default(""),
+    issuer: z.string().nullable().default(null),
+    year: z.string().nullable().default(null),
+    link: z.string().nullable().default(null)
+  })).default([]),
+  custom_sections: z.array(z.object({
+    section_name: z.string().default(""),
+    content: z.any()
+  })).default([]),
+  raw_overflow_bin: z.string().nullable().default(null)
+});
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -310,9 +370,17 @@ ${text.substring(0, 15000)} // Ensure we cap at a reasonable size
         const data = await response.json();
         const content = data.choices?.[0]?.message?.content || '';
         
-        // Clean markdown code blocks if present
-        const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        return JSON.parse(cleaned);
+        // Anti-Hallucination Regex Extractor
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            throw new Error("No JSON bracket found in response");
+        }
+        
+        const cleaned = jsonMatch[0].replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const rawJson = JSON.parse(cleaned);
+        
+        // Zod validation strictly enforces the schema and defaults
+        return ResumeSchema.parse(rawJson);
       } catch (err) {
         console.warn(`[Parser] Groq JSON parsing failed for ${model}, trying next...`, err.message);
       }
@@ -350,8 +418,17 @@ ${text.substring(0, 15000)} // Ensure we cap at a reasonable size
       const data = await response.json();
       const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-      const cleaned = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      return JSON.parse(cleaned);
+      // Anti-Hallucination Regex Extractor
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+          throw new Error("No JSON bracket found in Gemini response");
+      }
+
+      const cleaned = jsonMatch[0].replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const rawJson = JSON.parse(cleaned);
+      
+      // Zod validation
+      return ResumeSchema.parse(rawJson);
     } catch (error) {
       console.error('Gemini parsing error:', error);
       return null;
