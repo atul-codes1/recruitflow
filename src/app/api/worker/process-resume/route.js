@@ -1,3 +1,23 @@
+/**
+ * ============================================================================
+ * UPSTASH QSTASH WORKER ROUTE (ASYNC RESUME PROCESSING)
+ * ============================================================================
+ * 
+ * This is the core "Brain" of the enterprise architecture. Because Vercel has a 
+ * strict 10-second timeout on Free Tier APIs, we cannot parse resumes synchronously.
+ * 
+ * Flow:
+ * 1. User uploads resume to `api/apply`.
+ * 2. `api/apply` saves the file to Google Drive and publishes a message to Upstash QStash.
+ * 3. QStash HTTP calls this Worker Route in the background (bypassing user wait times).
+ * 4. This worker downloads the file, extracts text, runs OCR if needed, extracts JSON using Groq/Gemini, 
+ *    generates a 768-D Vector Embedding, and saves it all to the Supabase Database.
+ * 
+ * Security:
+ * The `verifySignatureAppRouter` ensures that ONLY Upstash can call this endpoint.
+ * Hackers cannot trigger this route manually.
+ */
+
 import { NextResponse } from 'next/server';
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 import { updateApplication } from '@/lib/db';
@@ -6,6 +26,9 @@ import { parseTextWithAi, performOcrWithGemini, extractWithRegex } from '@/lib/p
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 
+/**
+ * The main handler function executed by QStash.
+ */
 async function handler(request) {
   try {
     const body = await request.json();

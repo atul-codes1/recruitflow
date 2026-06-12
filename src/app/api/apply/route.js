@@ -1,3 +1,21 @@
+/**
+ * ============================================================================
+ * INGESTION LAYER (FILE UPLOAD & QUEUE PUBLISHING)
+ * ============================================================================
+ * 
+ * This endpoint is the entry point for applicants submitting their resumes.
+ * Because parsing a resume can take 10-30 seconds (which crashes Vercel free tier),
+ * this endpoint uses the "Infinite Scale" pattern:
+ * 
+ * 1. Receive the file from the browser.
+ * 2. Upload the raw file to Google Drive (or save locally as fallback).
+ * 3. Create a placeholder record in the Supabase Database (`ai_status: 'queued'`).
+ * 4. Publish a message to Upstash QStash.
+ * 5. Instantly return a success response to the user.
+ * 
+ * The heavy AI lifting is offloaded to `api/worker/process-resume`.
+ */
+
 import { NextResponse } from 'next/server';
 import { getJobBySlug, createApplication } from '@/lib/db';
 import { uploadToGoogleDrive } from '@/lib/gdrive';

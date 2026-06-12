@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getAllJobs } from '@/lib/db';
-import HomeJobsClient from './HomeJobsClient';
+import HomeJobsClient from '@/components/HomeJobsClient';
 import PublicHeader from '@/components/PublicHeader';
 import PublicFooter from '@/components/PublicFooter';
 
