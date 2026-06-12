@@ -75,22 +75,43 @@ export async function POST(request) {
       ai_status: 'queued', // Tell the dashboard it's waiting in line
     });
 
-    // STEP 3: Push to Upstash Queue
-    try {
-      const qstashToken = process.env.QSTASH_TOKEN;
-      if (!qstashToken) {
-        console.warn('[Apply] QSTASH_TOKEN not found! Queue push failed. You must configure Upstash.');
-        await updateApplication(application.id, { ai_status: 'failed', notes: 'Upstash QStash is not configured. Missing QSTASH_TOKEN.' });
-      } else {
-        const qstash = new Client({ token: qstashToken });
+    // STEP 3: Enterprise Background Processing (Hybrid)
+    if (process.env.NODE_ENV !== 'production' || !process.env.QSTASH_TOKEN) {
+      // LOCAL DEVELOPMENT (or no QStash Token): Process synchronously in background
+      // Upstash cloud cannot reach your local localhost:3000, so we use after() locally.
+      console.log('[Apply] Running in Local Dev (or missing QStash). Using synchronous Next.js after() to process.');
+      const { after } = require('next/server');
+      after(async () => {
+        try {
+          const res = await fetch(`http://localhost:${process.env.PORT || 3000}/api/worker/process-resume`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              applicationId: application.id,
+              drive_file_id: uploadResult.drive_file_id || '',
+              local_path: uploadResult.local_path || '',
+              fileName,
+              jobSlug,
+              ext,
+            })
+          });
+          if (!res.ok) throw new Error('Worker returned ' + res.status);
+        } catch (e) {
+          console.error('[Apply] Local after() processing failed:', e);
+          await updateApplication(application.id, { ai_status: 'failed', notes: e.message });
+        }
+      });
+    } else {
+      // PRODUCTION ENTERPRISE: Push to Upstash Queue
+      try {
+        const qstash = new Client({ token: process.env.QSTASH_TOKEN });
         
-        // Determine the absolute URL of the worker perfectly for Vercel
-        const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+        const protocol = 'https';
         const vercelUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
         const host = vercelUrl || request.headers.get('host');
         let baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
-        if (!baseUrl || (process.env.NODE_ENV === 'production' && baseUrl.includes('localhost'))) {
-            baseUrl = host ? `${protocol}://${host}` : 'http://localhost:3000';
+        if (!baseUrl || baseUrl.includes('localhost')) {
+            baseUrl = host ? `${protocol}://${host}` : 'https://recruitflow-nexion.vercel.app';
         }
         
         await qstash.publishJSON({
@@ -105,10 +126,10 @@ export async function POST(request) {
           },
         });
         console.log(`[Apply] Successfully pushed Application ${application.id} to QStash at ${baseUrl}.`);
+      } catch (qErr) {
+        console.error('[Apply] Failed to push to QStash:', qErr);
+        await updateApplication(application.id, { ai_status: 'failed', notes: 'Failed to connect to QStash API.' });
       }
-    } catch (qErr) {
-      console.error('[Apply] Failed to push to QStash:', qErr);
-      await updateApplication(application.id, { ai_status: 'failed', notes: 'Failed to connect to QStash API.' });
     }
 
     // STEP 4: RESPOND TO THE USER IMMEDIATELY

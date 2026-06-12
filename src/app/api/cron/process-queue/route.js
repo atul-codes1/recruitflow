@@ -18,23 +18,23 @@ export async function POST(request) {
       return NextResponse.json({ success: true, processed: 0 });
     }
 
-    const qstashToken = process.env.QSTASH_TOKEN;
-    if (!qstashToken) {
-      return NextResponse.json({ error: 'QSTASH_TOKEN missing. Cannot process queue.' }, { status: 500 });
-    }
+    const isLocal = process.env.NODE_ENV !== 'production' || !process.env.QSTASH_TOKEN;
 
-    const qstash = new Client({ token: qstashToken });
-    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-    const vercelUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
-    const host = vercelUrl || request.headers.get('host');
-    let baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
-    if (!baseUrl || (process.env.NODE_ENV === 'production' && baseUrl.includes('localhost'))) {
-        baseUrl = host ? `${protocol}://${host}` : 'http://localhost:3000';
+    let qstash, baseUrl;
+    if (!isLocal) {
+      qstash = new Client({ token: process.env.QSTASH_TOKEN });
+      const protocol = 'https';
+      const vercelUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
+      const host = vercelUrl || request.headers.get('host');
+      baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+      if (!baseUrl || baseUrl.includes('localhost')) {
+          baseUrl = host ? `${protocol}://${host}` : 'https://recruitflow-nexion.vercel.app';
+      }
     }
 
     let processedCount = 0;
 
-    // 2. Dispatch them all to QStash
+    // 2. Dispatch them
     for (const application of stuckApps) {
       try {
         if (!application.drive_file_id && !application.local_path) {
@@ -44,25 +44,43 @@ export async function POST(request) {
 
         const ext = application.resume_filename.split('.').pop() || 'pdf';
 
-        // Mark as queued to prevent duplicate clicks while QStash picks it up
+        // Mark as queued to prevent duplicate clicks while processing
         await updateApplication(application.id, { ai_status: 'queued' });
 
-        await qstash.publishJSON({
-          url: `${baseUrl}/api/worker/process-resume`,
-          body: {
-            applicationId: application.id,
-            drive_file_id: application.drive_file_id || '',
-            local_path: application.local_path || '',
-            fileName: application.resume_filename,
-            jobSlug: '', // we don't strictly need job slug for reparse
-            ext,
-          },
-        });
+        if (isLocal) {
+          console.log(`[Batch Processor] Running locally. Processing ${application.id} synchronously...`);
+          const res = await fetch(`http://localhost:${process.env.PORT || 3000}/api/worker/process-resume`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              applicationId: application.id,
+              drive_file_id: application.drive_file_id || '',
+              local_path: application.local_path || '',
+              fileName: application.resume_filename,
+              jobSlug: '',
+              ext,
+            })
+          });
+          if (!res.ok) throw new Error('Worker returned ' + res.status);
+        } else {
+          await qstash.publishJSON({
+            url: `${baseUrl}/api/worker/process-resume`,
+            body: {
+              applicationId: application.id,
+              drive_file_id: application.drive_file_id || '',
+              local_path: application.local_path || '',
+              fileName: application.resume_filename,
+              jobSlug: '', // we don't strictly need job slug for reparse
+              ext,
+            },
+          });
+        }
         
-        console.log(`[Batch Processor] Dispatched Application ${application.id} to QStash.`);
+        console.log(`[Batch Processor] Dispatched Application ${application.id}.`);
         processedCount++;
       } catch (err) {
         console.error(`[Batch Processor] Failed to dispatch ${application.id}:`, err);
+        await updateApplication(application.id, { ai_status: 'failed', notes: err.message });
       }
     }
 
