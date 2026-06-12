@@ -13,8 +13,8 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
     }
 
-    if (!application.drive_file_id) {
-       return NextResponse.json({ error: 'No PDF found in Google Drive to reparse' }, { status: 400 });
+    if (!application.drive_file_id && !application.local_path) {
+       return NextResponse.json({ error: 'No PDF found in Google Drive or Local Storage to reparse' }, { status: 400 });
     }
 
     // Mark as queued again
@@ -37,7 +37,8 @@ export async function POST(request, { params }) {
         url: `${baseUrl}/api/worker/process-resume`,
         body: {
           applicationId: application.id,
-          drive_file_id: application.drive_file_id,
+          drive_file_id: application.drive_file_id || '',
+          local_path: application.local_path || '',
           fileName: application.resume_filename,
           jobSlug: '', // we don't strictly need job slug for reparse
           ext,
