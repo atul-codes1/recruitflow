@@ -53,12 +53,12 @@ async function handler(request) {
     }
 
     if (text.trim().length < 5) {
-      console.warn(`[Worker] OCR Extraction totally failed. Aborting AI parsing.`);
+      console.warn(`[Worker] OCR Extraction totally failed (likely 503). Forcing Upstash Retry.`);
       await updateApplication(applicationId, {
-        candidate_name: 'OCR Failed (Google Overloaded)',
-        ai_status: 'failed'
+        candidate_name: 'Retrying... (Google Overloaded)'
       });
-      return NextResponse.json({ error: 'OCR Failed but handled' }, { status: 200 }); 
+      // Throwing a 500 tells Upstash QStash to automatically retry this later!
+      return NextResponse.json({ error: 'OCR Failed, forcing retry' }, { status: 500 }); 
     }
 
     // 3. AI Parsing

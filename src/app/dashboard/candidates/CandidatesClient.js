@@ -265,9 +265,21 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                           {app.parsed_data?.candidate?.name || app.candidate_name || 'Anonymous Applicant'}
                         </div>
                         {app.ai_status && app.ai_status !== 'completed' && (
-                          <span className={`badge badge-${app.ai_status}`} style={{ fontSize: '0.65rem', alignSelf: 'flex-start' }}>
-                            {app.ai_status === 'uploading' ? 'Uploading...' : app.ai_status === 'queued' ? 'Queued for AI' : 'AI Failed'}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span className={`badge badge-${app.ai_status}`} style={{ fontSize: '0.65rem' }}>
+                              {app.ai_status === 'uploading' ? 'Uploading...' : app.ai_status === 'queued' ? 'Queued for AI' : 'AI Failed'}
+                            </span>
+                            {(app.ai_status === 'failed' || app.candidate_name?.includes('OCR Failed')) && (
+                               <button 
+                                 onClick={(e) => { e.stopPropagation(); handleReparse(app.id); }}
+                                 disabled={isReparsing}
+                                 className="btn-primary btn-sm"
+                                 style={{ padding: '0.15rem 0.4rem', fontSize: '0.65rem' }}
+                               >
+                                 {isReparsing ? '↻' : 'Reparse AI'}
+                               </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </td>
