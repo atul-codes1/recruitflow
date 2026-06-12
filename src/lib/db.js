@@ -30,11 +30,6 @@ export async function getJobBySlug(slug) {
   return data;
 }
 
-export async function getJobById(id) {
-  const { data, error } = await supabase.from('jobs').select('*').eq('id', id).single();
-  if (error) return null;
-  return data;
-}
 
 export async function createJob(data) {
   const baseSlug = data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -118,11 +113,6 @@ export async function getAllApplications(filters = {}) {
   return apps.map(app => ({...app, applied_at: app.created_at}));
 }
 
-export async function getApplicationById(id) {
-  const { data, error } = await supabase.from('applications').select('*').eq('id', id).single();
-  if (error) return null;
-  return {...data, applied_at: data.created_at};
-}
 
 export async function createApplication(data) {
   // Ensure we map the API data correctly to the SQL table
@@ -166,13 +156,6 @@ export async function updateApplication(id, updates) {
   return {...data, applied_at: data.created_at};
 }
 
-export async function deleteApplication(id) {
-  const { error } = await supabase.from('applications').delete().eq('id', id);
-  if (error) {
-    console.error('Error deleting application:', error);
-    throw error;
-  }
-}
 
 // ========================================
 // Dashboard Stats
