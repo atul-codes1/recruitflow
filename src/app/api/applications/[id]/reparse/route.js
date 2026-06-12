@@ -50,8 +50,7 @@ export async function POST(request, { params }) {
         const qstash = new Client({ token: qstashToken });
         
         const protocol = 'https';
-        const vercelUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
-        const host = vercelUrl || request.headers.get('host');
+        const host = request.headers.get('host');
         let baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
         if (!baseUrl || baseUrl.includes('localhost')) {
             baseUrl = host ? `${protocol}://${host}` : 'https://recruitflow-nexion.vercel.app';
