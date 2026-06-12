@@ -12,21 +12,7 @@ export default function CandidatesClient({ initialApplications, jobs }) {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [isReparsing, setIsReparsing] = useState(false);
 
-  const handleReparse = async (appId) => {
-    setIsReparsing(true);
-    try {
-      const res = await fetch(`/api/applications/${appId}/reparse`, { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        window.location.reload();
-      } else {
-        alert("Failed to reparse: " + data.error);
-      }
-    } catch (err) {
-      alert("Error: " + err.message);
-    }
-    setIsReparsing(false);
-  };
+
 
   useEffect(() => {
     setApplications(initialApplications);
@@ -269,16 +255,6 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                             <span className={`badge badge-${app.ai_status}`} style={{ fontSize: '0.65rem' }}>
                               {app.ai_status === 'uploading' ? 'Uploading...' : app.ai_status === 'queued' ? 'Queued for AI' : 'AI Failed'}
                             </span>
-                            {(app.ai_status === 'failed' || app.candidate_name?.includes('OCR Failed')) && (
-                               <button 
-                                 onClick={(e) => { e.stopPropagation(); handleReparse(app.id); }}
-                                 disabled={isReparsing}
-                                 className="btn-primary btn-sm"
-                                 style={{ padding: '0.15rem 0.4rem', fontSize: '0.65rem' }}
-                               >
-                                 {isReparsing ? '↻' : 'Reparse AI'}
-                               </button>
-                            )}
                           </div>
                         )}
                       </div>
