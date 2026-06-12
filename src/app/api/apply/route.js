@@ -1,20 +1,23 @@
 /**
  * ============================================================================
- * SYNCHRONOUS INGESTION LAYER (FILE UPLOAD & BACKGROUND PARSING)
+ * INGESTION LAYER (FILE UPLOAD & QUEUE PUBLISHING)
  * ============================================================================
  * 
- * Reverting back to Next.js `after()` architecture.
- * This runs the AI parsing in the background of the SAME serverless invocation,
- * allowing us to use local memory/disk fallbacks perfectly without Upstash QStash.
+ * This endpoint uses the "Infinite Scale" pattern via Upstash QStash.
+ * 
+ * 1. Receive the file from the browser.
+ * 2. Upload the raw file to Google Drive.
+ * 3. Create a placeholder record in the Supabase Database (`ai_status: 'queued'`).
+ * 4. Publish a message to Upstash QStash.
+ * 5. Instantly return a success response to the user.
+ * 
+ * The heavy AI lifting is offloaded to `api/worker/process-resume`.
  */
 
 import { NextResponse } from 'next/server';
-import { after } from 'next/server';
 import { getJobBySlug, createApplication, updateApplication } from '@/lib/db';
 import { uploadToGoogleDrive } from '@/lib/gdrive';
-import { parseTextWithAi, performOcrWithGemini, extractWithRegex } from '@/lib/parser';
-import pdfParse from 'pdf-parse';
-import mammoth from 'mammoth';
+import { Client } from "@upstash/qstash";
 
 export async function POST(request) {
   try {
@@ -54,7 +57,7 @@ export async function POST(request) {
        return NextResponse.json({ error: 'Failed to safely upload resume. Please try again.' }, { status: 500 });
     }
 
-    // STEP 2: Fast Database Insert (Mark as Processing)
+    // STEP 2: Fast Database Insert (Mark as Queued)
     const application = await createApplication({
       job_id: job.id,
       candidate_name: 'Processing Resume...',
@@ -69,98 +72,42 @@ export async function POST(request) {
       skills: [],
       parsed_data: null,
       status: 'unreviewed', 
-      ai_status: 'uploading', // Processing in the background
+      ai_status: 'queued', // Tell the dashboard it's waiting in line
     });
 
-    // STEP 3: Process the AI synchronously in the background (using Next.js after())
-    after(async () => {
-      try {
-        console.log(`[Background] Started background AI processing for ${application.id}`);
+    // STEP 3: Push to Upstash Queue
+    try {
+      const qstashToken = process.env.QSTASH_TOKEN;
+      if (!qstashToken) {
+        console.warn('[Apply] QSTASH_TOKEN not found! Queue push failed. You must configure Upstash.');
+        await updateApplication(application.id, { ai_status: 'failed', notes: 'Upstash QStash is not configured. Missing QSTASH_TOKEN.' });
+      } else {
+        const qstash = new Client({ token: qstashToken });
         
-        let text = '';
-        let extractedFromOcr = false;
-
-        // 1. Text Extraction
-        console.log(`[Background] Extracting text from ${ext}...`);
-        if (ext === 'pdf') {
-          const pdfData = await pdfParse(buffer);
-          text = pdfData.text;
-        } else if (ext === 'docx') {
-          const docxData = await mammoth.extractRawText({ buffer });
-          text = docxData.value;
-        }
-
-        // 2. OCR Fallback (if PDF is image-based)
-        if (text.trim().length < 50 && ext === 'pdf') {
-           console.log(`[Background] Text is too short (${text.length} chars). Falling back to Gemini OCR...`);
-           const mimeType = 'application/pdf';
-           text = await performOcrWithGemini(buffer, mimeType);
-           extractedFromOcr = true;
-        }
-
-        if (!text || text.trim().length < 20) {
-           throw new Error('Could not extract any meaningful text from the resume.');
-        }
-
-        // 3. AI Parsing (JSON Extraction)
-        console.log(`[Background] Extracted ${text.length} characters. Running Groq/Gemini JSON Parser...`);
-        let parsedData = null;
-        let skillsArr = [];
-        try {
-           parsedData = await parseTextWithAi(text);
-           if (parsedData?.professional_narrative?.skills_assessed) {
-              skillsArr = parsedData.professional_narrative.skills_assessed.map(s => typeof s === 'string' ? s : s.skill).filter(Boolean);
-           }
-        } catch(e) {
-           console.log(`[Background] AI Parsing failed. Attempting regex fallback...`);
-           parsedData = extractWithRegex(text);
-        }
-
-        // 4. Vector Embedding (Semantic Search)
-        let embedding = null;
-        try {
-           const embeddingText = `${parsedData?.candidate?.name || ''} ${parsedData?.professional_narrative?.summary || ''} ${skillsArr.join(' ')}`;
-           if (embeddingText.trim().length > 10) {
-              const GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
-              if (GOOGLE_API_KEY) {
-                const embRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${GOOGLE_API_KEY}`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    model: 'models/text-embedding-004',
-                    content: { parts: [{ text: embeddingText }] }
-                  })
-                });
-                if (embRes.ok) {
-                  const embData = await embRes.json();
-                  embedding = embData.embedding?.values || null;
-                }
-              }
-           }
-        } catch(e) {
-           console.error('[Background] Embedding generation error:', e.message);
-        }
-
-        // 5. Update Database
-        console.log(`[Background] AI processing complete. Updating database...`);
-        await updateApplication(application.id, {
-          candidate_name: parsedData?.candidate?.name || 'Unknown Candidate',
-          candidate_email: parsedData?.candidate?.contact?.email || '',
-          candidate_phone: parsedData?.candidate?.contact?.phone || '',
-          experience_years: parsedData?.professional_narrative?.years_of_experience_calculated || null,
-          skills: skillsArr,
-          parsed_data: parsedData,
-          raw_text: text,
-          ai_status: 'completed',
-          ...(embedding ? { embedding } : {})
+        // Determine the absolute URL of the worker perfectly for Vercel
+        const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+        const host = request.headers.get('host');
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (host ? `${protocol}://${host}` : 'http://localhost:3000');
+        
+        await qstash.publishJSON({
+          url: `${baseUrl}/api/worker/process-resume`,
+          body: {
+            applicationId: application.id,
+            drive_file_id: uploadResult.drive_file_id || '',
+            local_path: uploadResult.local_path || '',
+            fileName,
+            jobSlug,
+            ext,
+          },
         });
-
-      } catch (err) {
-        console.error('[Background] Fatal error:', err);
-        await updateApplication(application.id, { ai_status: 'failed', notes: err.message });
+        console.log(`[Apply] Successfully pushed Application ${application.id} to QStash at ${baseUrl}.`);
       }
-    });
+    } catch (qErr) {
+      console.error('[Apply] Failed to push to QStash:', qErr);
+      await updateApplication(application.id, { ai_status: 'failed', notes: 'Failed to connect to QStash API.' });
+    }
 
+    // STEP 4: RESPOND TO THE USER IMMEDIATELY
     return NextResponse.json({ success: true, applicationId: application.id });
 
   } catch (error) {

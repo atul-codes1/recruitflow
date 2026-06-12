@@ -1,20 +1,16 @@
 import { NextResponse } from 'next/server';
-import { after } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { updateApplication } from '@/lib/db';
-import { parseTextWithAi, performOcrWithGemini, extractWithRegex } from '@/lib/parser';
-import pdfParse from 'pdf-parse';
-import mammoth from 'mammoth';
-import { downloadFromGoogleDrive } from '@/lib/gdrive';
+import { Client } from "@upstash/qstash";
 
 export async function POST(request) {
   try {
-    // 1. Find all stuck applications
+    // 1. Find all stuck applications (limit to 20 for safety)
     const { data: stuckApps, error } = await supabase
       .from('applications')
       .select('*')
       .in('ai_status', ['queued', 'failed', 'uploading'])
-      .limit(5);
+      .limit(20);
 
     if (error) throw error;
 
@@ -22,119 +18,51 @@ export async function POST(request) {
       return NextResponse.json({ success: true, processed: 0 });
     }
 
-    // 2. Mark them all as 'uploading' instantly so they don't get double-processed
-    for (const app of stuckApps) {
-      await updateApplication(app.id, { ai_status: 'uploading' });
+    const qstashToken = process.env.QSTASH_TOKEN;
+    if (!qstashToken) {
+      return NextResponse.json({ error: 'QSTASH_TOKEN missing. Cannot process queue.' }, { status: 500 });
     }
 
-    // 3. Process them sequentially in the background
-    after(async () => {
-      for (const application of stuckApps) {
-        try {
-          console.log(`[Batch Processor] Started processing for ${application.id}`);
-          
-          if (!application.drive_file_id && !application.local_path) {
-             throw new Error('No PDF found in Google Drive or Local Storage to parse.');
-          }
+    const qstash = new Client({ token: qstashToken });
+    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+    const host = request.headers.get('host');
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (host ? `${protocol}://${host}` : 'http://localhost:3000');
 
-          const ext = application.resume_filename.split('.').pop() || 'pdf';
-          let buffer;
+    let processedCount = 0;
 
-          if (application.drive_file_id) {
-             buffer = await downloadFromGoogleDrive(application.drive_file_id);
-          } else if (application.local_path) {
-             const fs = require('fs');
-             const path = require('path');
-             const fullPath = path.join(process.cwd(), application.local_path);
-             if (fs.existsSync(fullPath)) {
-               buffer = fs.readFileSync(fullPath);
-             } else {
-               throw new Error('Local file not found on disk.');
-             }
-          }
-
-          let text = '';
-          let extractedFromOcr = false;
-
-          // Text Extraction
-          if (ext === 'pdf') {
-            const pdfData = await pdfParse(buffer);
-            text = pdfData.text;
-          } else if (ext === 'docx') {
-            const docxData = await mammoth.extractRawText({ buffer });
-            text = docxData.value;
-          }
-
-          // OCR Fallback
-          if (text.trim().length < 50 && ext === 'pdf') {
-             console.log(`[Batch Processor] Text too short. Falling back to Gemini OCR...`);
-             const mimeType = 'application/pdf';
-             text = await performOcrWithGemini(buffer, mimeType);
-             extractedFromOcr = true;
-          }
-
-          if (!text || text.trim().length < 20) {
-             throw new Error('Could not extract any meaningful text from the resume.');
-          }
-
-          // AI Parsing
-          let parsedData = null;
-          let skillsArr = [];
-          try {
-             parsedData = await parseTextWithAi(text);
-             if (parsedData?.professional_narrative?.skills_assessed) {
-                skillsArr = parsedData.professional_narrative.skills_assessed.map(s => typeof s === 'string' ? s : s.skill).filter(Boolean);
-             }
-          } catch(e) {
-             parsedData = extractWithRegex(text);
-          }
-
-          // Vector Embedding
-          let embedding = null;
-          try {
-             const embeddingText = `${parsedData?.candidate?.name || ''} ${parsedData?.professional_narrative?.summary || ''} ${skillsArr.join(' ')}`;
-             if (embeddingText.trim().length > 10) {
-                const GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
-                if (GOOGLE_API_KEY) {
-                  const embRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${GOOGLE_API_KEY}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      model: 'models/text-embedding-004',
-                      content: { parts: [{ text: embeddingText }] }
-                    })
-                  });
-                  if (embRes.ok) {
-                    const embData = await embRes.json();
-                    embedding = embData.embedding?.values || null;
-                  }
-                }
-             }
-          } catch(e) {
-             console.error('[Batch Processor] Embedding generation error:', e.message);
-          }
-
-          // Update Database
-          await updateApplication(application.id, {
-            candidate_name: parsedData?.candidate?.name || 'Unknown Candidate',
-            candidate_email: parsedData?.candidate?.contact?.email || '',
-            candidate_phone: parsedData?.candidate?.contact?.phone || '',
-            experience_years: parsedData?.professional_narrative?.years_of_experience_calculated || null,
-            skills: skillsArr,
-            parsed_data: parsedData,
-            raw_text: text,
-            ai_status: 'completed',
-            ...(embedding ? { embedding } : {})
-          });
-
-        } catch (err) {
-          console.error(`[Batch Processor] Fatal error for ${application.id}:`, err);
-          await updateApplication(application.id, { ai_status: 'failed', notes: err.message });
+    // 2. Dispatch them all to QStash
+    for (const application of stuckApps) {
+      try {
+        if (!application.drive_file_id && !application.local_path) {
+           console.log(`[Batch Processor] Skipping ${application.id}: No file location.`);
+           continue;
         }
-      }
-    });
 
-    return NextResponse.json({ success: true, processed: stuckApps.length });
+        const ext = application.resume_filename.split('.').pop() || 'pdf';
+
+        // Mark as queued to prevent duplicate clicks while QStash picks it up
+        await updateApplication(application.id, { ai_status: 'queued' });
+
+        await qstash.publishJSON({
+          url: `${baseUrl}/api/worker/process-resume`,
+          body: {
+            applicationId: application.id,
+            drive_file_id: application.drive_file_id || '',
+            local_path: application.local_path || '',
+            fileName: application.resume_filename,
+            jobSlug: '', // we don't strictly need job slug for reparse
+            ext,
+          },
+        });
+        
+        console.log(`[Batch Processor] Dispatched Application ${application.id} to QStash.`);
+        processedCount++;
+      } catch (err) {
+        console.error(`[Batch Processor] Failed to dispatch ${application.id}:`, err);
+      }
+    }
+
+    return NextResponse.json({ success: true, processed: processedCount });
   } catch (error) {
     console.error('Batch processing error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

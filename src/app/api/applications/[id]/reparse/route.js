@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server';
-import { after } from 'next/server';
 import { getApplicationById, updateApplication } from '@/lib/db';
-import { parseTextWithAi, performOcrWithGemini, extractWithRegex } from '@/lib/parser';
-import pdfParse from 'pdf-parse';
-import mammoth from 'mammoth';
-import { downloadFromGoogleDrive } from '@/lib/gdrive';
+import { Client } from "@upstash/qstash";
 
 export async function POST(request, { params }) {
   try {
@@ -22,108 +18,40 @@ export async function POST(request, { params }) {
 
     // Mark as queued again
     await updateApplication(application.id, {
-       ai_status: 'uploading'
+       ai_status: 'queued'
     });
 
-    after(async () => {
-      try {
-        console.log(`[Reparse] Started background AI processing for ${application.id}`);
-        
-        const ext = application.resume_filename.split('.').pop() || 'pdf';
-        let buffer;
-
-        if (application.drive_file_id) {
-           buffer = await downloadFromGoogleDrive(application.drive_file_id);
-        } else if (application.local_path) {
-           const fs = require('fs');
-           const path = require('path');
-           const fullPath = path.join(process.cwd(), application.local_path);
-           if (fs.existsSync(fullPath)) {
-             buffer = fs.readFileSync(fullPath);
-           } else {
-             throw new Error('Local file not found on disk.');
-           }
-        }
-
-        let text = '';
-        let extractedFromOcr = false;
-
-        // 1. Text Extraction
-        if (ext === 'pdf') {
-          const pdfData = await pdfParse(buffer);
-          text = pdfData.text;
-        } else if (ext === 'docx') {
-          const docxData = await mammoth.extractRawText({ buffer });
-          text = docxData.value;
-        }
-
-        // 2. OCR Fallback
-        if (text.trim().length < 50 && ext === 'pdf') {
-           console.log(`[Reparse] Text is too short. Falling back to Gemini OCR...`);
-           const mimeType = 'application/pdf';
-           text = await performOcrWithGemini(buffer, mimeType);
-           extractedFromOcr = true;
-        }
-
-        if (!text || text.trim().length < 20) {
-           throw new Error('Could not extract any meaningful text from the resume.');
-        }
-
-        // 3. AI Parsing
-        let parsedData = null;
-        let skillsArr = [];
-        try {
-           parsedData = await parseTextWithAi(text);
-           if (parsedData?.professional_narrative?.skills_assessed) {
-              skillsArr = parsedData.professional_narrative.skills_assessed.map(s => typeof s === 'string' ? s : s.skill).filter(Boolean);
-           }
-        } catch(e) {
-           parsedData = extractWithRegex(text);
-        }
-
-        // 4. Vector Embedding
-        let embedding = null;
-        try {
-           const embeddingText = `${parsedData?.candidate?.name || ''} ${parsedData?.professional_narrative?.summary || ''} ${skillsArr.join(' ')}`;
-           if (embeddingText.trim().length > 10) {
-              const GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
-              if (GOOGLE_API_KEY) {
-                const embRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${GOOGLE_API_KEY}`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    model: 'models/text-embedding-004',
-                    content: { parts: [{ text: embeddingText }] }
-                  })
-                });
-                if (embRes.ok) {
-                  const embData = await embRes.json();
-                  embedding = embData.embedding?.values || null;
-                }
-              }
-           }
-        } catch(e) {
-           console.error('[Reparse] Embedding generation error:', e.message);
-        }
-
-        // 5. Update Database
-        await updateApplication(application.id, {
-          candidate_name: parsedData?.candidate?.name || 'Unknown Candidate',
-          candidate_email: parsedData?.candidate?.contact?.email || '',
-          candidate_phone: parsedData?.candidate?.contact?.phone || '',
-          experience_years: parsedData?.professional_narrative?.years_of_experience_calculated || null,
-          skills: skillsArr,
-          parsed_data: parsedData,
-          raw_text: text,
-          ai_status: 'completed',
-          ...(embedding ? { embedding } : {})
-        });
-
-      } catch (err) {
-        console.error('[Reparse] Fatal error:', err);
-        await updateApplication(application.id, { ai_status: 'failed', notes: err.message });
+    try {
+      const qstashToken = process.env.QSTASH_TOKEN;
+      if (!qstashToken) {
+        return NextResponse.json({ error: 'QSTASH_TOKEN missing. Cannot reparse.' }, { status: 500 });
       }
-    });
+
+      const qstash = new Client({ token: qstashToken });
+      
+      const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+      const host = request.headers.get('host');
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (host ? `${protocol}://${host}` : 'http://localhost:3000');
+      
+      const ext = application.resume_filename.split('.').pop() || 'pdf';
+
+      await qstash.publishJSON({
+        url: `${baseUrl}/api/worker/process-resume`,
+        body: {
+          applicationId: application.id,
+          drive_file_id: application.drive_file_id || '',
+          local_path: application.local_path || '',
+          fileName: application.resume_filename,
+          jobSlug: '', // we don't strictly need job slug for reparse
+          ext,
+        },
+      });
+      console.log(`[Reparse] Successfully pushed Application ${application.id} to QStash at ${baseUrl}.`);
+    } catch (qErr) {
+      console.error('[Reparse] Failed to push to QStash:', qErr);
+      await updateApplication(application.id, { ai_status: 'failed', notes: 'Failed to connect to QStash API.' });
+      return NextResponse.json({ error: 'Failed to trigger queue' }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
