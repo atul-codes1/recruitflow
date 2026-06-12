@@ -100,6 +100,7 @@ export async function POST(request) {
           body: {
             applicationId: application.id,
             drive_file_id: uploadResult.drive_file_id || '',
+            local_path: uploadResult.local_path || '',
             fileName,
             jobSlug,
             ext,
