@@ -30,8 +30,12 @@ export async function POST(request, { params }) {
       const qstash = new Client({ token: qstashToken });
       
       const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-      const host = request.headers.get('host');
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (host ? `${protocol}://${host}` : 'http://localhost:3000');
+      const vercelUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
+      const host = vercelUrl || request.headers.get('host');
+      let baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+      if (!baseUrl || (process.env.NODE_ENV === 'production' && baseUrl.includes('localhost'))) {
+          baseUrl = host ? `${protocol}://${host}` : 'http://localhost:3000';
+      }
       
       const ext = application.resume_filename.split('.').pop() || 'pdf';
 

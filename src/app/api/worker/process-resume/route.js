@@ -168,6 +168,4 @@ async function handler(request) {
   }
 }
 
-export const POST = process.env.QSTASH_CURRENT_SIGNING_KEY 
-  ? verifySignatureAppRouter(handler) 
-  : handler;
+export const POST = handler;
