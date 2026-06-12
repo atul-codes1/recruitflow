@@ -328,7 +328,7 @@ export async function parseTextWithAi(text) {
 IMPORTANT RULES:
 1. STRICT JSON: Ensure the output is STRICTLY valid JSON. Do NOT include raw newline characters or unescaped quotes inside string values.
 2. MISSING DATA: If a piece of information is not found in the text, you MUST return 'null' for strings/numbers and '[]' for arrays. Do NOT hallucinate or guess.
-3. EXPERIENCE CALCULATION: Carefully calculate 'years_of_experience_calculated' by summing the duration of all professional roles. Do not double-count overlapping dates. If there is no experience, return 0.
+3. EXPERIENCE CALCULATION: Carefully calculate 'years_of_experience_calculated' by summing the duration of all professional roles. You MUST explicitly exclude any gaps in employment (unemployed periods) from this calculation. Do not double-count overlapping dates. If there is no experience, return 0.
 4. METRICS: When parsing 'achievements', if a bullet point contains a number, percentage, or currency (e.g., "Increased sales by 20%"), extract that specific number into the 'metric' field.
 5. OVERFLOW: Any random text, reference details, weird disclaimers, or unstructured data that absolutely does not fit into the schema MUST be dumped into 'raw_overflow_bin'.
 6. DATES: Standardize dates to YYYY-MM. If only a year is provided, use YYYY-01.
