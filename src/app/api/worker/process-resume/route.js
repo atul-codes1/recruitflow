@@ -30,9 +30,10 @@ import mammoth from 'mammoth';
  * The main handler function executed by QStash.
  */
 async function handler(request) {
+  let reqBody = {};
   try {
-    const body = await request.json();
-    const { applicationId, drive_file_id, local_path, fileName, ext } = body;
+    reqBody = await request.json();
+    const { applicationId, drive_file_id, local_path, fileName, ext } = reqBody;
 
     console.log(`[Worker] Started processing application ${applicationId}...`);
 
@@ -154,6 +155,15 @@ async function handler(request) {
 
   } catch (err) {
     console.error('[Worker] Fatal error in worker:', err);
+    
+    try {
+      if (reqBody.applicationId) {
+        await updateApplication(reqBody.applicationId, { ai_status: 'failed', notes: err.message });
+      }
+    } catch(dbErr) {
+      console.error('[Worker] Failed to update DB status:', dbErr);
+    }
+    
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
