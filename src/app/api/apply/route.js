@@ -114,8 +114,13 @@ export async function POST(request) {
             baseUrl = host ? `${protocol}://${host}` : 'https://recruitflow-nexion.vercel.app';
         }
         
+        let cleanBaseUrl = baseUrl;
+        if (cleanBaseUrl.endsWith('/')) {
+            cleanBaseUrl = cleanBaseUrl.slice(0, -1);
+        }
+        
         await qstash.publishJSON({
-          url: `${baseUrl}/api/worker/process-resume`,
+          url: `${cleanBaseUrl}/api/worker/process-resume`,
           body: {
             applicationId: application.id,
             drive_file_id: uploadResult.drive_file_id || '',

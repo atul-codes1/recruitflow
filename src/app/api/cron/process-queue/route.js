@@ -63,8 +63,13 @@ export async function POST(request) {
           });
           if (!res.ok) throw new Error('Worker returned ' + res.status);
         } else {
+          let cleanBaseUrl = baseUrl;
+          if (cleanBaseUrl.endsWith('/')) {
+              cleanBaseUrl = cleanBaseUrl.slice(0, -1);
+          }
+
           await qstash.publishJSON({
-            url: `${baseUrl}/api/worker/process-resume`,
+            url: `${cleanBaseUrl}/api/worker/process-resume`,
             body: {
               applicationId: application.id,
               drive_file_id: application.drive_file_id || '',
