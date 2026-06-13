@@ -14,17 +14,17 @@ export async function POST(request) {
     }
 
     // 1. Authenticate the Recruiter Token
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id, name')
+    const { data: profile, error: authError } = await supabase
+      .from('profiles')
+      .select('id')
       .eq('id', token)
       .single();
 
-    if (userError || !user) {
+    if (authError || !profile) {
       return NextResponse.json({ error: 'Invalid authentication token' }, { status: 401 });
     }
 
-    return NextResponse.json({ success: true, name: user.name });
+    return NextResponse.json({ success: true, name: profile.id });
 
   } catch (error) {
     console.error('Verify API Error:', error);
