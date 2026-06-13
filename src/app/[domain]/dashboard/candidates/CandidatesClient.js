@@ -46,9 +46,9 @@ export default function CandidatesClient({ initialApplications, jobs }) {
 
     // Date Filter
     if (dateFilter !== 'all') {
-      if (dateFilter === 'today' && !isWithinDays(app.applied_at, 1)) return false;
-      if (dateFilter === 'week' && !isWithinDays(app.applied_at, 7)) return false;
-      if (dateFilter === 'month' && !isWithinDays(app.applied_at, 30)) return false;
+      if (dateFilter === 'today' && !isWithinDays(app.created_at, 1)) return false;
+      if (dateFilter === 'week' && !isWithinDays(app.created_at, 7)) return false;
+      if (dateFilter === 'month' && !isWithinDays(app.created_at, 30)) return false;
     }
 
     // Role Filter
@@ -307,8 +307,8 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                       </div>
                     </td>
                     <td>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 500 }}>{formatDate(app.applied_at).date}</div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--color-surface-400)' }}>{formatDate(app.applied_at).time}</div>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 500 }}>{formatDate(app.created_at).date}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--color-surface-400)' }}>{formatDate(app.created_at).time}</div>
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <StatusSelect application={app} />
