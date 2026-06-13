@@ -70,11 +70,14 @@ export async function POST(request) {
       .select()
       .single();
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      console.error('Insert Error Detail:', insertError);
+      throw insertError;
+    }
     
     return NextResponse.json(inserted);
   } catch (error) {
     console.error('API /jobs POST Error:', error);
-    return NextResponse.json({ error: 'Failed to create job' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create job', details: error.message, hint: error.hint, code: error.code }, { status: 500 });
   }
 }
