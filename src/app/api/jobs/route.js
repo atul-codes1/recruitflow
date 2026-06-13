@@ -62,6 +62,7 @@ export async function POST(request) {
       employment_type: data.employment_type || 'Full-time',
       description: data.description || '',
       is_active: true,
+      created_by: user.id, // Phase 1.9: Explicit Recruiter Assignment
     };
 
     const { data: inserted, error: insertError } = await supabase

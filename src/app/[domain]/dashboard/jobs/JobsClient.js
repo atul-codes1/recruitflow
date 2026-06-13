@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-export default function JobsClient({ initialJobs }) {
+export default function JobsClient({ domain, initialJobs }) {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -162,7 +162,7 @@ export default function JobsClient({ initialJobs }) {
                 🗑️
               </button>
               <div style={{ width: '1px', height: '24px', background: 'var(--border-med)', margin: '0 0.5rem' }}></div>
-              <Link href={`/apply/${job.slug}`} target="_blank" className="btn-secondary btn-sm" style={{ textDecoration: 'none' }}>
+              <Link href={`/boards/${domain}/${job.slug}`} target="_blank" className="btn-secondary btn-sm" style={{ textDecoration: 'none' }}>
                 Portal ↗
               </Link>
             </div>

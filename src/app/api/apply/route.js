@@ -32,10 +32,10 @@ export async function POST(request) {
 
     const supabaseAdmin = createAdminClient();
 
-    // 1. Validate Job
+    // 1. Validate Job & Fetch Recruiter ID
     const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
-      .select('id, company_id')
+      .select('id, company_id, created_by')
       .eq('slug', jobSlug)
       .eq('is_active', true)
       .single();
@@ -72,6 +72,7 @@ export async function POST(request) {
       .insert({
         job_id: job.id,
         company_id: job.company_id, // Link directly to the company workspace
+        recruiter_id: job.created_by, // Phase 1.9: Assign directly to the Recruiter who posted it
         candidate_name: 'Processing Resume...',
         candidate_email: '',
         candidate_phone: '',
