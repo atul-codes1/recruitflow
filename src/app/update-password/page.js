@@ -33,7 +33,7 @@ export default function UpdatePasswordPage() {
       if (res.ok) {
         setSuccess(true);
         setTimeout(() => {
-          router.push('/dashboard/candidates');
+          window.location.href = '/api/auth/route-tenant';
         }, 2000);
       } else {
         const data = await res.json();

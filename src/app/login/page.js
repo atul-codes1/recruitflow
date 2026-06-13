@@ -31,8 +31,7 @@ export default function AuthPage() {
       });
 
       if (res.ok) {
-        router.push('/dashboard/candidates');
-        router.refresh();
+        window.location.href = '/api/auth/route-tenant';
       } else {
         const data = await res.json();
         setError(data.error || 'Invalid credentials');
@@ -70,8 +69,7 @@ export default function AuthPage() {
           body: JSON.stringify({ email, password })
         });
         if (loginRes.ok) {
-          router.push('/dashboard/candidates'); // Middleware will auto-route to tenant!
-          router.refresh();
+          window.location.href = '/api/auth/route-tenant';
         } else {
           setMode('login'); // Fallback
         }
