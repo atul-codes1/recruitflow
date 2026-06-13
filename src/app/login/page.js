@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function AuthPage() {
-  const [mode, setMode] = useState('login'); // 'login', 'register', 'verify'
+  const [mode, setMode] = useState('login'); // 'login', 'register', 'verify', 'reset'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -75,6 +75,31 @@ export default function AuthPage() {
     }
   };
 
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      if (res.ok) {
+        setMode('verify'); // Switch to Success screen
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to send reset link');
+      }
+    } catch (err) {
+      setError('Failed to connect to the server.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   return (
     <div className="animate-fade" style={{ 
@@ -112,12 +137,13 @@ export default function AuthPage() {
           
           <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
             <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-surface-100)', margin: 0 }}>
-              {mode === 'login' ? 'Welcome Back' : mode === 'register' ? 'Create Workspace' : 'Verify Email'}
+              {mode === 'login' ? 'Welcome Back' : mode === 'register' ? 'Create Workspace' : mode === 'reset' ? 'Reset Password' : 'Check Email'}
             </h1>
             <p style={{ color: 'var(--color-surface-400)', fontSize: '0.9375rem', marginTop: '0.5rem' }}>
               {mode === 'login' ? 'Enter your credentials to access the vault.' : 
                mode === 'register' ? 'Use your corporate email to join.' : 
-               'Enter the 6-digit code sent to your email.'}
+               mode === 'reset' ? 'Enter your email to receive a recovery link.' :
+               'Check your inbox for the secure link.'}
             </p>
           </div>
 
@@ -131,6 +157,11 @@ export default function AuthPage() {
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <input type="email" placeholder="Work Email" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} />
               <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required style={inputStyle} />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.5rem' }}>
+                <span style={{ color: '#818cf8', fontSize: '0.8125rem', cursor: 'pointer' }} onClick={() => setMode('reset')}>
+                  Forgot Password?
+                </span>
+              </div>
               <button type="submit" disabled={loading} style={buttonStyle}>{loading ? 'Authenticating...' : 'Sign In'}</button>
               <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem', marginTop: '1rem' }}>
                 New company? <span style={{ color: '#818cf8', cursor: 'pointer' }} onClick={() => setMode('register')}>Register here</span>
@@ -156,8 +187,8 @@ export default function AuthPage() {
               <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✉️</div>
               <h2 style={{ color: 'var(--color-surface-100)', fontSize: '1.25rem', marginBottom: '0.5rem' }}>Check Your Email</h2>
               <p style={{ color: 'var(--color-surface-400)', fontSize: '0.9375rem', lineHeight: 1.5 }}>
-                We've sent a secure Magic Link to <strong>{email}</strong>. <br/><br/>
-                Click the link in the email to instantly verify your account and build your Workspace!
+                We've sent a secure link to <strong>{email}</strong>. <br/><br/>
+                Click the link in the email to securely verify your identity!
               </p>
               <button 
                 onClick={() => setMode('login')} 
@@ -165,6 +196,16 @@ export default function AuthPage() {
                 Back to Sign In
               </button>
             </div>
+          )}
+
+          {mode === 'reset' && (
+            <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <input type="email" placeholder="Work Email" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} />
+              <button type="submit" disabled={loading} style={buttonStyle}>{loading ? 'Sending...' : 'Send Recovery Link'}</button>
+              <p style={{ textAlign: 'center', color: 'var(--color-surface-400)', fontSize: '0.875rem', marginTop: '1rem' }}>
+                Remembered it? <span style={{ color: '#818cf8', cursor: 'pointer' }} onClick={() => setMode('login')}>Sign In</span>
+              </p>
+            </form>
           )}
 
         </div>
