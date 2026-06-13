@@ -843,3 +843,17 @@ table.table-compact tbody tr:hover {
     grid-template-columns: 300px 1fr;
   }
 }
+
+/* Skeleton Loading Animation */
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.skeleton {
+  background: var(--bg-card);
+  background-image: linear-gradient(to right, var(--bg-card) 0%, var(--bg-subtle) 20%, var(--bg-card) 40%, var(--bg-card) 100%);
+  background-repeat: no-repeat;
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear forwards;
+}
