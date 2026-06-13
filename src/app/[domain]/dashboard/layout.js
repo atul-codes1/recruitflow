@@ -1,6 +1,36 @@
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
 import DashboardHeader from './DashboardHeader';
 
-export default function DashboardLayout({ children }) {
+export default async function DashboardLayout({ children, params }) {
+  const { domain } = await params;
+  
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  
+  if (authError || !user) {
+    redirect('/login');
+  }
+
+  // Fetch the user's company domain to ensure they are in the right workspace
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('companies(domain)')
+    .eq('id', user.id)
+    .single();
+
+  const userDomain = profile?.companies?.domain;
+
+  if (!userDomain) {
+    // Edge Case: No workspace found (Ghost session). Force them to log out.
+    redirect('/login?error=GhostSession');
+  }
+
+  // Security Lock: If they try to access someone else's workspace, boot them to their own
+  if (domain !== userDomain) {
+    redirect(`/${userDomain}/dashboard`);
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--color-surface-950)', position: 'relative', overflow: 'hidden' }}>
       
@@ -19,7 +49,7 @@ export default function DashboardLayout({ children }) {
       </div>
 
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <DashboardHeader />
+        <DashboardHeader domain={domain} />
 
         {/* Main Content */}
         <main style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', maxWidth: '1400px', margin: '0 auto', overflowX: 'hidden' }}>

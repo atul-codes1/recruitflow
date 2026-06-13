@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
-export default function DashboardHeader() {
+export default function DashboardHeader({ domain }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const pathname = usePathname();
@@ -21,11 +21,11 @@ export default function DashboardHeader() {
   };
 
   const navLinks = [
-    { href: '/dashboard', icon: '📊', label: 'Overview' },
-    { href: '/dashboard/search', icon: '🧠', label: 'AI Search' },
-    { href: '/dashboard/candidates', icon: '👥', label: 'Candidates' },
-    { href: '/dashboard/jobs', icon: '💼', label: 'Jobs' },
-    { href: '/dashboard/settings', icon: '⚙️', label: 'Settings' },
+    { href: `/${domain}/dashboard`, icon: '📊', label: 'Overview' },
+    { href: `/${domain}/dashboard/search`, icon: '🧠', label: 'AI Search' },
+    { href: `/${domain}/dashboard/candidates`, icon: '👥', label: 'Candidates' },
+    { href: `/${domain}/dashboard/jobs`, icon: '💼', label: 'Jobs' },
+    { href: `/${domain}/dashboard/settings`, icon: '⚙️', label: 'Settings' },
   ];
 
   return (
@@ -130,7 +130,7 @@ export default function DashboardHeader() {
                     backdropFilter: 'blur(16px)',
                   }}>
                     <Link 
-                      href="/" 
+                      href={`/boards/${domain}`} 
                       target="_blank"
                       style={{
                         display: 'flex',
@@ -234,7 +234,7 @@ export default function DashboardHeader() {
             </Link>
           ))}
           <div style={{ margin: '1rem 0', height: '1px', background: 'var(--border-light)' }}></div>
-          <Link href="/" target="_blank" className="btn-secondary" style={{ justifyContent: 'center' }}>
+          <Link href={`/boards/${domain}`} target="_blank" className="btn-secondary" style={{ justifyContent: 'center' }}>
             Public Portal ↗
           </Link>
         </div>
