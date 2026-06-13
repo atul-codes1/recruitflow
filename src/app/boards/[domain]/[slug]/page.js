@@ -112,7 +112,7 @@ export default function ApplyPage() {
         return;
       }
 
-      router.push(`/success?job=${encodeURIComponent(job.title)}`);
+      router.push(`/boards/${params.domain}/success?job=${encodeURIComponent(job.title)}`);
     } catch {
       setError('Something went wrong. Please try again.');
       setSubmitting(false);

@@ -1,8 +1,13 @@
-import Link from 'next/link';
+'use client';
 
-export default function SuccessPage({ searchParams }) {
-  // Await searchParams in Next 15+ is not strictly required if we just read it, but since it's an async component, it's better to await it.
-  // Actually, in Next.js 15, searchParams is a Promise. Let's handle it carefully or just make this a client component.
+import Link from 'next/link';
+import { useParams, useSearchParams } from 'next/navigation';
+
+export default function SuccessPage() {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const job = searchParams.get('job') || 'the position';
+
   return (
     <div className="bg-gradient-hero bg-grid-pattern" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div className="card animate-in" style={{ textAlign: 'center', padding: '4rem 3rem', maxWidth: '520px', margin: '2rem' }}>
@@ -39,11 +44,11 @@ export default function SuccessPage({ searchParams }) {
         </h1>
         
         <p style={{ color: 'var(--color-surface-400)', marginBottom: '2.5rem', lineHeight: 1.6 }}>
-          Thank you for applying. We&apos;ve successfully received your resume and details. 
-          Our team will review your application and get back to you if there&apos;s a match.
+          Thank you for applying to <strong>{job}</strong>. We've successfully received your resume and details. 
+          Our team will review your application and get back to you shortly.
         </p>
 
-        <Link href="/" className="btn-primary" style={{ width: '100%', padding: '1rem' }}>
+        <Link href={`/boards/${params.domain}`} className="btn-primary" style={{ width: '100%', padding: '1rem', display: 'block', textDecoration: 'none' }}>
           Back to Careers
         </Link>
       </div>
