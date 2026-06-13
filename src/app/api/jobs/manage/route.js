@@ -14,6 +14,9 @@ export async function PATCH(request) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    if (profile?.role !== 'admin') return NextResponse.json({ error: 'Only admins can edit jobs.' }, { status: 403 });
+
     const { data: updated, error } = await supabase
       .from('jobs')
       .update(updates)
@@ -42,6 +45,9 @@ export async function DELETE(request) {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    if (profile?.role !== 'admin') return NextResponse.json({ error: 'Only admins can delete jobs.' }, { status: 403 });
 
     const { error } = await supabase
       .from('jobs')

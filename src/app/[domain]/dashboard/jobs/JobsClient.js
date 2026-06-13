@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-export default function JobsClient({ domain, initialJobs, userId }) {
+export default function JobsClient({ domain, initialJobs, userId, userRole }) {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -122,9 +122,11 @@ export default function JobsClient({ domain, initialJobs, userId }) {
           </h1>
           <p style={{ color: 'var(--color-surface-400)' }}>Manage your open roles and generate application links.</p>
         </div>
-        <button className="btn-primary" onClick={openCreateModal}>
-          + Create New Job
-        </button>
+        {userRole === 'admin' && (
+          <button className="btn-primary" onClick={openCreateModal}>
+            + Create New Job
+          </button>
+        )}
       </div>
 
       {/* Jobs List */}
@@ -152,15 +154,19 @@ export default function JobsClient({ domain, initialJobs, userId }) {
             </div>
             
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-              <button onClick={() => handleToggleStatus(job)} className="btn-secondary btn-sm" title={job.is_active ? 'Hide Job' : 'Make Active'}>
-                {job.is_active ? '👁️' : '🚫'}
-              </button>
-              <button onClick={() => openEditModal(job)} className="btn-secondary btn-sm" title="Edit Job">
-                ✏️
-              </button>
-              <button onClick={() => handleDelete(job.id)} className="btn-danger btn-sm" title="Delete Job">
-                🗑️
-              </button>
+              {userRole === 'admin' && (
+                <>
+                  <button onClick={() => handleToggleStatus(job)} className="btn-secondary btn-sm" title={job.is_active ? 'Hide Job' : 'Make Active'}>
+                    {job.is_active ? '👁️' : '🚫'}
+                  </button>
+                  <button onClick={() => openEditModal(job)} className="btn-secondary btn-sm" title="Edit Job">
+                    ✏️
+                  </button>
+                  <button onClick={() => handleDelete(job.id)} className="btn-danger btn-sm" title="Delete Job">
+                    🗑️
+                  </button>
+                </>
+              )}
               <div style={{ width: '1px', height: '24px', background: 'var(--border-med)', margin: '0 0.5rem' }}></div>
               <button 
                 onClick={() => {

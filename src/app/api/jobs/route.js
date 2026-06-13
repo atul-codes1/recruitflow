@@ -34,15 +34,19 @@ export async function POST(request) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // 2. Fetch User Profile to get `company_id`
+    // 2. Fetch User Profile to get `company_id` and `role`
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('company_id')
+      .select('company_id, role')
       .eq('id', user.id)
       .single();
 
     if (profileError || !profile?.company_id) {
       return NextResponse.json({ error: 'No workspace found for user' }, { status: 403 });
+    }
+
+    if (profile.role !== 'admin') {
+      return NextResponse.json({ error: 'Only workspace admins can create new jobs.' }, { status: 403 });
     }
 
     // 3. Prepare Job Data securely tagged with company_id
