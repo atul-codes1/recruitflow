@@ -62,7 +62,7 @@ export default function PublicFooter() {
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <li><Link href="/help" style={linkStyle}>Help</Link></li>
               <li><Link href="/status" style={linkStyle}>Status</Link></li>
-              <li><Link href="/dashboard" style={linkStyle}>Employer Login</Link></li>
+              <li><Link href="/login" style={linkStyle}>Employer Login</Link></li>
             </ul>
           </div>
 

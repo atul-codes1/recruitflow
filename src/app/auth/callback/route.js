@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 export async function GET(request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  const nextPath = requestUrl.searchParams.get('next') || '/dashboard/candidates';
+  const nextPath = requestUrl.searchParams.get('next') || '/api/auth/route-tenant';
   
   if (!code) {
     return NextResponse.redirect(new URL('/login?error=Invalid verification link', request.url));
@@ -37,11 +37,7 @@ export async function GET(request) {
       .single();
 
     if (existingProfile) {
-       // Check if they need to go to a specific tenant
-       const targetUrl = nextPath.startsWith('/dashboard') 
-          ? `/${domain}${nextPath}` 
-          : nextPath;
-       return NextResponse.redirect(new URL(targetUrl, request.url));
+       return NextResponse.redirect(new URL(nextPath, request.url));
     }
 
     // 3. New User Setup - Check if Company exists
@@ -81,10 +77,7 @@ export async function GET(request) {
     if (profileError) throw profileError;
 
     // Everything is set up! Send them into their tenant app.
-    const targetUrl = nextPath.startsWith('/dashboard') 
-        ? `/${domain}${nextPath}` 
-        : nextPath;
-    return NextResponse.redirect(new URL(targetUrl, request.url));
+    return NextResponse.redirect(new URL(nextPath, request.url));
 
   } catch (err) {
     console.error('Auto-Routing Error:', err);

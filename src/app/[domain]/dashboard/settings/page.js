@@ -2,7 +2,9 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-export default function SettingsPage() {
+export default async function SettingsPage({ params }) {
+  const { domain } = await params;
+
   return (
     <div className="animate-fade" style={{ paddingBottom: '2rem' }}>
       <div style={{ marginBottom: '1.5rem' }}>
@@ -62,7 +64,7 @@ export default function SettingsPage() {
           
           <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.6875rem' }}>
              <span style={{ color: 'var(--color-surface-500)' }}>🔒 Google Cloud Platform</span>
-             <Link href="/dashboard/settings/docs" style={{ color: 'var(--color-primary-400)', textDecoration: 'none' }}>
+             <Link href={`/${domain}/dashboard/settings/docs`} style={{ color: 'var(--color-primary-400)', textDecoration: 'none' }}>
                GCP Docs ↗
              </Link>
           </div>

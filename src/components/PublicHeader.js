@@ -51,7 +51,7 @@ export default function PublicHeader({ companyName }) {
 
         {/* Right Side: CTA */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <Link href="/dashboard" className="btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}>
+          <Link href="/login" className="btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}>
             Recruiter Login
           </Link>
         </div>

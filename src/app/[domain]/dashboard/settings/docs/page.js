@@ -2,11 +2,13 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-export default function DocsPage() {
+export default async function DocsPage({ params }) {
+  const { domain } = await params;
+
   return (
     <div className="animate-fade" style={{ paddingBottom: '4rem', maxWidth: '800px' }}>
-      <div style={{ marginBottom: '2rem' }}>
-        <Link href="/dashboard/settings" style={{ color: 'var(--color-primary-400)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 600 }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        <Link href={`/${domain}/dashboard/settings`} style={{ color: 'var(--color-primary-400)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 600 }}>
           ← Back to Settings
         </Link>
         <h1 style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-outfit, var(--font-display))', color: 'var(--color-surface-100)', marginBottom: '0.5rem' }}>
