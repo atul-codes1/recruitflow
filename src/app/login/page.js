@@ -4,11 +4,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function AuthPage() {
-  const [mode, setMode] = useState('login'); // 'login', 'register', 'otp'
+  const [mode, setMode] = useState('login'); // 'login', 'register', 'verify'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -57,7 +56,7 @@ export default function AuthPage() {
       });
 
       if (res.ok) {
-        setMode('otp'); // Switch to OTP screen
+        setMode('verify'); // Switch to Success screen
       } else {
         const data = await res.json();
         setError(data.error || 'Registration failed');
@@ -69,31 +68,6 @@ export default function AuthPage() {
     }
   };
 
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      const res = await fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp })
-      });
-
-      if (res.ok) {
-        router.push('/dashboard/candidates');
-        router.refresh();
-      } else {
-        const data = await res.json();
-        setError(data.error || 'Invalid OTP');
-      }
-    } catch (err) {
-      setError('Failed to connect to the server.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="animate-fade" style={{ 
@@ -169,11 +143,20 @@ export default function AuthPage() {
             </form>
           )}
 
-          {mode === 'otp' && (
-            <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <input type="text" placeholder="6-Digit Code" value={otp} onChange={(e) => setOtp(e.target.value)} required style={{...inputStyle, textAlign: 'center', letterSpacing: '0.5em', fontSize: '1.25rem'}} maxLength={6} />
-              <button type="submit" disabled={loading} style={buttonStyle}>{loading ? 'Verifying...' : 'Verify & Enter'}</button>
-            </form>
+            {mode === 'verify' && (
+            <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✉️</div>
+              <h2 style={{ color: 'white', fontSize: '1.25rem', marginBottom: '0.5rem' }}>Check Your Email</h2>
+              <p style={{ color: 'var(--color-surface-400)', fontSize: '0.9375rem', lineHeight: 1.5 }}>
+                We've sent a secure Magic Link to <strong>{email}</strong>. <br/><br/>
+                Click the link in the email to instantly verify your account and build your Workspace!
+              </p>
+              <button 
+                onClick={() => setMode('login')} 
+                style={{ ...buttonStyle, background: 'rgba(255,255,255,0.1)', marginTop: '2rem' }}>
+                Back to Sign In
+              </button>
+            </div>
           )}
 
         </div>

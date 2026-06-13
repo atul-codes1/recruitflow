@@ -27,11 +27,14 @@ export async function POST(request) {
     const supabase = createClient();
 
     // 3. Register the user with Supabase Auth
-    // Supabase will automatically encrypt the password and send the OTP email!
+    // Supabase will automatically send the Magic Link email.
+    const origin = request.headers.get('origin');
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        emailRedirectTo: `${origin}/auth/callback`,
         data: {
           full_name: fullName,
           domain: domain
