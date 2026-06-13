@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 
 // Blocklist of popular free/disposable email domains
@@ -23,31 +24,62 @@ export async function POST(request) {
       }, { status: 403 });
     }
 
-    // 2. Setup Supabase Client
-    const supabase = await createClient();
+    // 2. Setup Supabase Admin Client to bypass email limits
+    const supabaseAdmin = createAdminClient();
 
-    // 3. Register the user with Supabase Auth
-    // Supabase will automatically send the Magic Link email.
-    const origin = new URL(request.url).origin;
-    
-    const { data, error } = await supabase.auth.signUp({
+    // 3. Register the user and auto-confirm them to bypass Free Tier email limits
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      options: {
-        emailRedirectTo: `${origin}/auth/callback`,
-        data: {
-          full_name: fullName,
-          domain: domain
-        }
+      email_confirm: true,
+      user_metadata: {
+        full_name: fullName,
+        domain: domain
       }
     });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    if (authError) {
+      return NextResponse.json({ error: authError.message }, { status: 400 });
     }
 
-    // Success! The OTP email is on its way to the user.
-    return NextResponse.json({ success: true, message: 'OTP sent successfully' });
+    const user = authData.user;
+
+    // 4. Auto-provision Workspace right now (replaces auth/callback)
+    let { data: company } = await supabaseAdmin
+      .from('companies')
+      .select('id')
+      .eq('domain', domain)
+      .single();
+
+    let role = 'recruiter';
+
+    if (!company) {
+      const companyName = domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
+      const { data: newCompany, error: companyError } = await supabaseAdmin
+        .from('companies')
+        .insert({ name: companyName, domain: domain })
+        .select()
+        .single();
+
+      if (companyError) throw companyError;
+      company = newCompany;
+      role = 'admin';
+    }
+
+    // 5. Create Profile
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: user.id,
+        company_id: company.id,
+        role: role,
+        full_name: fullName
+      });
+
+    if (profileError) throw profileError;
+
+    // Success! The user is fully provisioned and can instantly login.
+    return NextResponse.json({ success: true, message: 'Workspace created successfully. You can now log in!' });
 
   } catch (error) {
     console.error('Registration error:', error);

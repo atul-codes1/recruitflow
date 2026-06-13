@@ -63,7 +63,18 @@ export default function AuthPage() {
       });
 
       if (res.ok) {
-        setMode('verify'); // Switch to Success screen
+        // Auto-login since we bypassed email verification!
+        const loginRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        if (loginRes.ok) {
+          router.push('/dashboard/candidates'); // Middleware will auto-route to tenant!
+          router.refresh();
+        } else {
+          setMode('login'); // Fallback
+        }
       } else {
         const data = await res.json();
         setError(data.error || 'Registration failed');
