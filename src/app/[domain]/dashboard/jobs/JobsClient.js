@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-export default function JobsClient({ domain, initialJobs }) {
+export default function JobsClient({ domain, initialJobs, userId }) {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -162,8 +162,19 @@ export default function JobsClient({ domain, initialJobs }) {
                 🗑️
               </button>
               <div style={{ width: '1px', height: '24px', background: 'var(--border-med)', margin: '0 0.5rem' }}></div>
-              <Link href={`/boards/${domain}/${job.slug}`} target="_blank" className="btn-secondary btn-sm" style={{ textDecoration: 'none' }}>
-                Portal ↗
+              <button 
+                onClick={() => {
+                  const url = `${window.location.origin}/boards/${domain}/${job.slug}?ref=${userId}`;
+                  navigator.clipboard.writeText(url);
+                  alert('Copied your personal tracking link to clipboard!');
+                }}
+                className="btn-secondary btn-sm" 
+                title="Copy Personal Link"
+              >
+                🔗 Copy Link
+              </button>
+              <Link href={`/boards/${domain}/${job.slug}?ref=${userId}`} target="_blank" className="btn-primary btn-sm" style={{ textDecoration: 'none' }}>
+                View ↗
               </Link>
             </div>
           </div>

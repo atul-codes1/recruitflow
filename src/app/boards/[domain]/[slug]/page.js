@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 
 export default function ApplyPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const fileInputRef = useRef(null);
   const [job, setJob] = useState(null);
@@ -92,6 +93,11 @@ export default function ApplyPage() {
       formData.append('resume', file);
       formData.append('job_slug', job.slug);
       formData.append('experience_level', experienceLevel);
+      
+      const ref = searchParams.get('ref');
+      if (ref) {
+        formData.append('ref', ref);
+      }
 
       const response = await fetch('/api/apply', {
         method: 'POST',

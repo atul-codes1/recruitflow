@@ -25,6 +25,7 @@ export async function POST(request) {
     const resume = formData.get('resume');
     const jobSlug = formData.get('job_slug');
     const experienceLevel = formData.get('experience_level') || '';
+    const ref = formData.get('ref');
 
     if (!resume || !jobSlug) {
       return NextResponse.json({ error: 'Missing resume or job slug' }, { status: 400 });
@@ -72,7 +73,7 @@ export async function POST(request) {
       .insert({
         job_id: job.id,
         company_id: job.company_id, // Link directly to the company workspace
-        recruiter_id: job.created_by, // Phase 1.9: Assign directly to the Recruiter who posted it
+        recruiter_id: ref || null, // Phase 1.10 (Option A): Assign to the referring Recruiter, else Company Pool
         candidate_name: 'Processing Resume...',
         candidate_email: '',
         candidate_phone: '',
