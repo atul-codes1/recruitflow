@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
-export default function SuccessPage() {
+function SuccessContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const job = searchParams.get('job') || 'the position';
@@ -53,5 +54,13 @@ export default function SuccessPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>}>
+      <SuccessContent />
+    </Suspense>
   );
 }

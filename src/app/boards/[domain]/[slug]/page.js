@@ -3,8 +3,9 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
-export default function ApplyPage() {
+function ApplyContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -369,5 +370,13 @@ export default function ApplyPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ApplyPage() {
+  return (
+    <Suspense fallback={<div className="bg-gradient-hero bg-grid-pattern" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ fontSize: '2rem', animation: 'pulse-glow 2s infinite' }}>⚡</div></div>}>
+      <ApplyContent />
+    </Suspense>
   );
 }
