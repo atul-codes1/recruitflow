@@ -15,6 +15,7 @@ export default function CandidatesClient({ initialApplications, jobs }) {
 
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setApplications(initialApplications);
   }, [initialApplications]);
 

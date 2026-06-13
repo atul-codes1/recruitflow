@@ -12,6 +12,7 @@ export default function JobsClient({ domain, initialJobs, userId, userRole }) {
   const [editingJobId, setEditingJobId] = useState(null);
   const [mounted, setMounted] = useState(false);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
   
   const [form, setForm] = useState({
