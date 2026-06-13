@@ -72,10 +72,13 @@ export default function JobsClient({ initialJobs }) {
         if (res.ok) {
           setIsModalOpen(false);
           router.refresh();
-        } else alert('Failed to create job');
+        } else {
+          const errData = await res.json();
+          alert(`Failed: ${errData.details || errData.error || 'Unknown error'}`);
+        }
       }
     } catch (error) {
-      alert('An error occurred');
+      alert('An error occurred: ' + error.message);
     } finally {
       setLoading(false);
     }
