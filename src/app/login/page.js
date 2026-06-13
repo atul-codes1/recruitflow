@@ -7,6 +7,7 @@ export default function AuthPage() {
   const [mode, setMode] = useState('login'); // 'login', 'register', 'verify'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -46,6 +47,12 @@ export default function AuthPage() {
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -75,7 +82,7 @@ export default function AuthPage() {
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'center', 
-      background: '#030712', 
+      background: 'var(--color-surface-950)', 
       position: 'relative',
       overflow: 'hidden'
     }}>
@@ -84,7 +91,7 @@ export default function AuthPage() {
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', zIndex: 0, pointerEvents: 'none' }}>
         <div className="animate-float" style={{ 
           position: 'absolute', top: '-10%', left: '10%', width: '500px', height: '500px', 
-          background: 'radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(80px)', animationDuration: '10s'
+          background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(80px)', animationDuration: '10s'
         }}></div>
         <div className="animate-pulse" style={{ 
           position: 'absolute', top: '40%', left: '50%', width: '800px', height: '800px', transform: 'translate(-50%, -50%)',
@@ -96,15 +103,15 @@ export default function AuthPage() {
         
         <div style={{ 
           padding: '3rem', 
-          background: 'rgba(17, 24, 39, 0.6)', 
+          background: 'var(--color-surface-900)', 
           backdropFilter: 'blur(24px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)', 
+          border: '1px solid var(--color-border)', 
           borderRadius: '24px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)' 
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.2)' 
         }}>
           
           <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'white', margin: 0 }}>
+            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-surface-100)', margin: 0 }}>
               {mode === 'login' ? 'Welcome Back' : mode === 'register' ? 'Create Workspace' : 'Verify Email'}
             </h1>
             <p style={{ color: 'var(--color-surface-400)', fontSize: '0.9375rem', marginTop: '0.5rem' }}>
@@ -136,8 +143,9 @@ export default function AuthPage() {
               <input type="text" placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} required style={inputStyle} />
               <input type="email" placeholder="Work Email (e.g. name@company.com)" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} />
               <input type="password" placeholder="Secure Password" value={password} onChange={(e) => setPassword(e.target.value)} required style={inputStyle} />
+              <input type="password" placeholder="Confirm Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required style={inputStyle} />
               <button type="submit" disabled={loading} style={buttonStyle}>{loading ? 'Creating...' : 'Continue'}</button>
-              <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem', marginTop: '1rem' }}>
+              <p style={{ textAlign: 'center', color: 'var(--color-surface-400)', fontSize: '0.875rem', marginTop: '1rem' }}>
                 Already have an account? <span style={{ color: '#818cf8', cursor: 'pointer' }} onClick={() => setMode('login')}>Sign In</span>
               </p>
             </form>
@@ -146,14 +154,14 @@ export default function AuthPage() {
             {mode === 'verify' && (
             <div style={{ textAlign: 'center', padding: '1rem 0' }}>
               <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✉️</div>
-              <h2 style={{ color: 'white', fontSize: '1.25rem', marginBottom: '0.5rem' }}>Check Your Email</h2>
+              <h2 style={{ color: 'var(--color-surface-100)', fontSize: '1.25rem', marginBottom: '0.5rem' }}>Check Your Email</h2>
               <p style={{ color: 'var(--color-surface-400)', fontSize: '0.9375rem', lineHeight: 1.5 }}>
                 We've sent a secure Magic Link to <strong>{email}</strong>. <br/><br/>
                 Click the link in the email to instantly verify your account and build your Workspace!
               </p>
               <button 
                 onClick={() => setMode('login')} 
-                style={{ ...buttonStyle, background: 'rgba(255,255,255,0.1)', marginTop: '2rem' }}>
+                style={{ ...buttonStyle, background: 'var(--color-surface-800)', marginTop: '2rem' }}>
                 Back to Sign In
               </button>
             </div>
@@ -166,8 +174,8 @@ export default function AuthPage() {
 }
 
 const inputStyle = {
-  width: '100%', background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.1)',
-  borderRadius: '12px', padding: '1rem', fontSize: '1rem', color: 'white', outline: 'none'
+  width: '100%', background: 'var(--color-surface-800)', border: '1px solid var(--color-border)',
+  borderRadius: '12px', padding: '1rem', fontSize: '1rem', color: 'var(--color-surface-100)', outline: 'none'
 };
 
 const buttonStyle = {
