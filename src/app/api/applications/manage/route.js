@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { updateApplication } from '@/lib/db';
+import { createClient } from '@/lib/supabase/server';
 
 export async function PATCH(request) {
   try {
@@ -10,13 +10,24 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'Missing id or status' }, { status: 400 });
     }
 
-    const updated = await updateApplication(id, { status });
-    if (!updated) {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { data: updated, error } = await supabase
+      .from('applications')
+      .update({ status })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error || !updated) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
     }
 
     return NextResponse.json(updated);
   } catch (error) {
+    console.error('API /applications/manage PATCH Error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

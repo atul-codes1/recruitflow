@@ -15,7 +15,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getJobBySlug, createApplication, updateApplication } from '@/lib/db';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadToGoogleDrive } from '@/lib/gdrive';
 import { Client } from "@upstash/qstash";
 
@@ -30,9 +30,18 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Missing resume or job slug' }, { status: 400 });
     }
 
-    const job = await getJobBySlug(jobSlug);
-    if (!job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    const supabaseAdmin = createAdminClient();
+
+    // 1. Validate Job
+    const { data: job, error: jobError } = await supabaseAdmin
+      .from('jobs')
+      .select('id, company_id')
+      .eq('slug', jobSlug)
+      .eq('is_active', true)
+      .single();
+
+    if (jobError || !job) {
+      return NextResponse.json({ error: 'Job not found or inactive' }, { status: 404 });
     }
 
     // Convert File to Buffer
@@ -58,22 +67,32 @@ export async function POST(request) {
     }
 
     // STEP 2: Fast Database Insert (Mark as Queued)
-    const application = await createApplication({
-      job_id: job.id,
-      candidate_name: 'Processing Resume...',
-      candidate_email: '',
-      candidate_phone: '',
-      resume_filename: fileName,
-      drive_file_id: uploadResult.drive_file_id || '',
-      drive_web_url: uploadResult.drive_web_url || '',
-      local_path: uploadResult.local_path || '',
-      experience_level: experienceLevel,
-      experience_years: null,
-      skills: [],
-      parsed_data: null,
-      status: 'unreviewed', 
-      ai_status: 'queued', // Tell the dashboard it's waiting in line
-    });
+    const { data: application, error: appError } = await supabaseAdmin
+      .from('applications')
+      .insert({
+        job_id: job.id,
+        company_id: job.company_id, // Link directly to the company workspace
+        candidate_name: 'Processing Resume...',
+        candidate_email: '',
+        candidate_phone: '',
+        resume_filename: fileName,
+        drive_file_id: uploadResult.drive_file_id || '',
+        drive_web_url: uploadResult.drive_web_url || '',
+        local_path: uploadResult.local_path || '',
+        experience_level: experienceLevel,
+        experience_years: null,
+        skills: [],
+        parsed_data: null,
+        status: 'unreviewed', 
+        ai_status: 'queued',
+      })
+      .select()
+      .single();
+
+    if (appError) {
+      console.error('[Apply] DB Insert Error:', appError);
+      return NextResponse.json({ error: 'Failed to submit application.' }, { status: 500 });
+    }
 
     // STEP 3: Enterprise Background Processing (Hybrid)
     if (process.env.NODE_ENV !== 'production' || !process.env.QSTASH_TOKEN) {
@@ -98,7 +117,7 @@ export async function POST(request) {
           if (!res.ok) throw new Error('Worker returned ' + res.status);
         } catch (e) {
           console.error('[Apply] Local after() processing failed:', e);
-          await updateApplication(application.id, { ai_status: 'failed', notes: e.message });
+          await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: e.message }).eq('id', application.id);
         }
       });
     } else {
@@ -132,7 +151,7 @@ export async function POST(request) {
         console.log(`[Apply] Successfully pushed Application ${application.id} to QStash at ${baseUrl}.`);
       } catch (qErr) {
         console.error('[Apply] Failed to push to QStash:', qErr);
-        await updateApplication(application.id, { ai_status: 'failed', notes: 'Failed to connect to QStash API.' });
+        await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: 'Failed to connect to QStash API.' }).eq('id', application.id);
       }
     }
 

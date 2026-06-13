@@ -1,12 +1,13 @@
-import { getAllApplications, getAllJobs } from '@/lib/db';
+import { createClient } from '@/lib/supabase/server';
 import CandidatesClient from './CandidatesClient';
 import PageHeader from './PageHeader';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CandidatesPage() {
-  const applications = await getAllApplications();
-  const jobs = await getAllJobs();
+  const supabase = await createClient();
+  const { data: applications } = await supabase.from('applications').select('*').order('created_at', { ascending: false });
+  const { data: jobs } = await supabase.from('jobs').select('*').order('created_at', { ascending: false });
 
   const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -18,7 +19,7 @@ export default async function CandidatesPage() {
     <div className="animate-fade">
       <PageHeader />
       <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
-        {applications.length === 0 ? (
+        {!applications || applications.length === 0 ? (
           <div className="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -32,7 +33,7 @@ export default async function CandidatesPage() {
             </h3>
           </div>
         ) : (
-          <CandidatesClient initialApplications={applications} jobs={jobs} />
+          <CandidatesClient initialApplications={applications} jobs={jobs || []} />
         )}
       </div>
     </div>

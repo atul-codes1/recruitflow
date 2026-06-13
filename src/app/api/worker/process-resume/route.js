@@ -20,7 +20,7 @@
 
 import { NextResponse } from 'next/server';
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
-import { updateApplication } from '@/lib/db';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { downloadFromGoogleDrive } from '@/lib/gdrive';
 import { parseTextWithAi, performOcrWithGemini, extractWithRegex } from '@/lib/parser';
 import pdfParse from 'pdf-parse';
@@ -36,6 +36,8 @@ async function handler(request) {
     const { applicationId, drive_file_id, local_path, fileName, ext } = reqBody;
 
     console.log(`[Worker] Started processing application ${applicationId}...`);
+
+    const supabaseAdmin = createAdminClient();
 
     let buffer;
 
@@ -55,7 +57,7 @@ async function handler(request) {
        }
     } else {
        console.error('[Worker] No file location provided (no drive ID or local path).');
-       await updateApplication(applicationId, { ai_status: 'failed', notes: 'Upload failed before parsing.' });
+       await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: 'Upload failed before parsing.' }).eq('id', applicationId);
        return NextResponse.json({ error: 'No file location' }, { status: 400 });
     }
 
@@ -78,9 +80,9 @@ async function handler(request) {
 
     if (text.trim().length < 5) {
       console.warn(`[Worker] OCR Extraction totally failed (likely 503). Forcing Upstash Retry.`);
-      await updateApplication(applicationId, {
+      await supabaseAdmin.from('applications').update({
         candidate_name: 'Retrying... (Google Overloaded)'
-      });
+      }).eq('id', applicationId);
       // Throwing a 500 tells Upstash QStash to automatically retry this later!
       return NextResponse.json({ error: 'OCR Failed, forcing retry' }, { status: 500 }); 
     }
@@ -138,7 +140,7 @@ async function handler(request) {
 
     // 5. Update Database
     console.log(`[Worker] AI parsing complete. Updating database...`);
-    await updateApplication(applicationId, {
+    await supabaseAdmin.from('applications').update({
       candidate_name: parsedData?.candidate?.name || 'Unknown Candidate',
       candidate_email: parsedData?.candidate?.contact?.email || '',
       candidate_phone: parsedData?.candidate?.contact?.phone || '',
@@ -148,7 +150,7 @@ async function handler(request) {
       raw_text: text,
       ai_status: 'completed',
       ...(embedding ? { embedding } : {})
-    });
+    }).eq('id', applicationId);
 
     console.log(`[Worker] Successfully completed processing for Application ${applicationId}`);
     return NextResponse.json({ success: true });
@@ -158,7 +160,7 @@ async function handler(request) {
     
     try {
       if (reqBody.applicationId) {
-        await updateApplication(reqBody.applicationId, { ai_status: 'failed', notes: err.message });
+        await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: err.message }).eq('id', reqBody.applicationId);
       }
     } catch(dbErr) {
       console.error('[Worker] Failed to update DB status:', dbErr);

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-export default function PublicHeader() {
+export default function PublicHeader({ companyName }) {
   return (
     <header style={{ 
       borderBottom: '1px solid var(--bg-active)',
@@ -44,7 +44,7 @@ export default function PublicHeader() {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}>
-              RecruitFlow
+              {companyName ? `${companyName} Careers` : 'RecruitFlow'}
             </span>
           </Link>
         </div>

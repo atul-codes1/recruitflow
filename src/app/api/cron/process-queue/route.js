@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { updateApplication } from '@/lib/db';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { Client } from "@upstash/qstash";
 
 export async function POST(request) {
   try {
+    const supabaseAdmin = createAdminClient();
+
     // 1. Find all stuck applications (limit to 20 for safety)
-    const { data: stuckApps, error } = await supabase
+    const { data: stuckApps, error } = await supabaseAdmin
       .from('applications')
       .select('*')
       .in('ai_status', ['queued', 'failed', 'uploading'])
@@ -44,7 +45,7 @@ export async function POST(request) {
         const ext = application.resume_filename.split('.').pop() || 'pdf';
 
         // Mark as queued to prevent duplicate clicks while processing
-        await updateApplication(application.id, { ai_status: 'queued' });
+        await supabaseAdmin.from('applications').update({ ai_status: 'queued' }).eq('id', application.id);
 
         if (isLocal) {
           console.log(`[Batch Processor] Running locally. Processing ${application.id} synchronously...`);
@@ -84,7 +85,7 @@ export async function POST(request) {
         processedCount++;
       } catch (err) {
         console.error(`[Batch Processor] Failed to dispatch ${application.id}:`, err);
-        await updateApplication(application.id, { ai_status: 'failed', notes: err.message });
+        await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: err.message }).eq('id', application.id);
       }
     }
 

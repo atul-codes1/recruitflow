@@ -1,12 +1,36 @@
-import { getAllApplications, getDashboardStats, getAllJobs } from '@/lib/db';
+import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const stats = await getDashboardStats();
-  const applications = await getAllApplications();
-  const jobs = await getAllJobs();
+  const supabase = await createClient();
+  const { data: applications } = await supabase.from('applications').select('*').order('created_at', { ascending: false });
+  const { data: jobs } = await supabase.from('jobs').select('*');
+
+  // Calculate Dashboard Stats
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  let totalApplications = 0;
+  let shortlisted = 0;
+  let newToday = 0;
+
+  for (const a of (applications || [])) {
+    totalApplications++;
+    if (a.status === 'shortlisted' || a.status === 'hired') shortlisted++;
+    const appDate = new Date(a.created_at).getTime();
+    if (appDate >= startOfToday) newToday++;
+  }
+
+  const activeJobs = (jobs || []).filter(j => j.is_active).length;
+
+  const stats = {
+    total: totalApplications,
+    today: newToday,
+    this_week: newToday, // placeholder for weekly delta
+    by_status: { shortlisted },
+    active_jobs: activeJobs,
+  };
 
   // Helper to format date
   const formatDate = (dateStr) => {
@@ -78,7 +102,7 @@ export default async function DashboardPage() {
           />
         </div>
 
-        {applications.length === 0 ? (
+        {!applications || applications.length === 0 ? (
           <div className="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -107,8 +131,8 @@ export default async function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {applications.map(app => {
-                  const job = jobs.find(j => j.id === app.job_id);
+                {(applications || []).map(app => {
+                  const job = (jobs || []).find(j => j.id === app.job_id);
                   return (
                     <tr key={app.id}>
                       <td>
@@ -127,7 +151,7 @@ export default async function DashboardPage() {
                           </div>
                         )}
                       </td>
-                      <td>{formatDate(app.applied_at)}</td>
+                      <td>{formatDate(app.created_at)}</td>
                       <td>
                         <span className={`badge badge-${app.status}`}>
                           {app.status}
