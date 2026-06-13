@@ -12,8 +12,9 @@ export default function DashboardHeader({ domain, profile }) {
 
   const handleLogout = async () => {
     await fetch('/api/logout', { method: 'POST' });
-    router.push('/login');
-    router.refresh();
+    // Use a hard redirect instead of router.push() to completely clear the bfcache
+    // This ensures that clicking the 'Back' button in the browser will not restore the authenticated DOM.
+    window.location.href = '/login';
   };
 
   const toggleMenu = () => {
