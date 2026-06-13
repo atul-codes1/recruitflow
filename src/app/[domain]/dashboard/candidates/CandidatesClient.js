@@ -53,7 +53,11 @@ export default function CandidatesClient({ initialApplications, jobs }) {
 
     // Role Filter
     if (roleFilter !== 'all') {
-      if (app.job_id !== roleFilter) return false;
+      if (roleFilter === 'general_pool') {
+        if (app.job_id !== null && app.job_id !== undefined) return false;
+      } else {
+        if (app.job_id !== roleFilter) return false;
+      }
     }
 
     // Status Filter
@@ -173,6 +177,7 @@ export default function CandidatesClient({ initialApplications, jobs }) {
             onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-med)'}
           >
             <option value="all">All Roles</option>
+            <option value="general_pool">General Pool (Unassigned)</option>
             {jobs.map(job => (
               <option key={job.id} value={job.id}>
                 {job.title}
@@ -296,8 +301,8 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                     </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 500, color: '#93c5fd', fontSize: '0.8125rem' }}>
-                          {job?.title || 'Unknown Job'}
+                        <span style={{ fontWeight: 500, color: app.job_id ? '#93c5fd' : '#c084fc', fontSize: '0.8125rem' }}>
+                          {app.job_id ? (job?.title || 'Unknown Job') : 'General Pool'}
                         </span>
                         {job?.experience && (
                           <span style={{ fontSize: '0.65rem', color: 'var(--color-surface-400)', border: '1px solid var(--border-med)', padding: '0.1rem 0.3rem', borderRadius: '4px' }}>
