@@ -9,7 +9,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Missing credentials' }, { status: 400 });
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,

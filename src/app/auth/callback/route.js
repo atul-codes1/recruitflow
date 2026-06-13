@@ -10,7 +10,7 @@ export async function GET(request) {
     return NextResponse.redirect(new URL('/login?error=Invalid verification link', request.url));
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // 1. Exchange the secure code for an active session
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
