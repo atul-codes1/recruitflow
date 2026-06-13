@@ -15,7 +15,7 @@ export default async function DashboardLayout({ children, params }) {
   // Fetch the user's company domain to ensure they are in the right workspace
   const { data: profile } = await supabase
     .from('profiles')
-    .select('companies(domain)')
+    .select('full_name, role, companies(domain)')
     .eq('id', user.id)
     .single();
 
@@ -49,7 +49,7 @@ export default async function DashboardLayout({ children, params }) {
       </div>
 
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <DashboardHeader domain={domain} />
+        <DashboardHeader domain={domain} profile={profile} />
 
         {/* Main Content */}
         <main style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', maxWidth: '1400px', margin: '0 auto', overflowX: 'hidden' }}>

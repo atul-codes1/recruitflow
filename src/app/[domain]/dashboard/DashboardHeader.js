@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
-export default function DashboardHeader({ domain }) {
+export default function DashboardHeader({ domain, profile }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const pathname = usePathname();
@@ -25,8 +25,12 @@ export default function DashboardHeader({ domain }) {
     { href: `/${domain}/dashboard/search`, icon: '🧠', label: 'AI Search' },
     { href: `/${domain}/dashboard/candidates`, icon: '👥', label: 'Candidates' },
     { href: `/${domain}/dashboard/jobs`, icon: '💼', label: 'Jobs' },
-    { href: `/${domain}/dashboard/settings`, icon: '⚙️', label: 'Settings' },
   ];
+
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  };
 
   return (
     <header style={{ 
@@ -101,11 +105,15 @@ export default function DashboardHeader({ domain }) {
                   color: 'var(--color-surface-100)',
                   fontSize: '0.875rem'
                 }}>
-                  HR
+                  {getInitials(profile?.full_name)}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-surface-100)', lineHeight: 1 }}>Recruiter</span>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--color-surface-400)', lineHeight: 1, marginTop: '0.25rem' }}>Admin</span>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-surface-100)', lineHeight: 1 }}>
+                    {profile?.full_name || 'User'}
+                  </span>
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--color-surface-400)', lineHeight: 1, marginTop: '0.25rem', textTransform: 'capitalize' }}>
+                    {profile?.role || 'Member'}
+                  </span>
                 </div>
                 <span style={{ fontSize: '0.625rem', color: 'var(--color-surface-500)', transition: 'transform 0.2s', transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
               </div>
@@ -129,6 +137,28 @@ export default function DashboardHeader({ domain }) {
                     animation: 'fadeIn 0.15s ease-out',
                     backdropFilter: 'blur(16px)',
                   }}>
+                    <Link 
+                      href={`/${domain}/dashboard/settings`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        width: '100%',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-surface-200)',
+                        padding: '0.75rem 1rem',
+                        fontSize: '0.875rem',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s',
+                        textDecoration: 'none',
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-active)'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                    >
+                      <span style={{ fontSize: '1rem' }}>⚙️</span> Settings
+                    </Link>
                     <Link 
                       href={`/boards/${domain}`} 
                       target="_blank"
