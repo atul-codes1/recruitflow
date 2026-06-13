@@ -28,7 +28,7 @@ export async function POST(request) {
 
     // 3. Register the user with Supabase Auth
     // Supabase will automatically send the Magic Link email.
-    const origin = request.headers.get('origin');
+    const origin = new URL(request.url).origin;
     
     const { data, error } = await supabase.auth.signUp({
       email,
