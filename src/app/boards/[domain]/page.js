@@ -42,7 +42,7 @@ export default async function CompanyBoardPage({ params }) {
         width: '100%', 
         padding: '2rem',
       }}>
-        <HomeJobsClient jobs={jobs || []} />
+        <HomeJobsClient domain={domain} jobs={jobs || []} />
       </main>
 
       <PublicFooter />

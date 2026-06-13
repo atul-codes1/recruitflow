@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 
-export default function HomeJobsClient({ jobs }) {
+export default function HomeJobsClient({ domain, jobs }) {
 
   return (
     <>
@@ -43,7 +43,7 @@ export default function HomeJobsClient({ jobs }) {
             {jobs.map((job, index) => (
               <Link
                 key={job.id}
-                href={`/apply/${job.slug}`}
+                href={`/boards/${domain}/${job.slug}`}
                 className={`card-stat stagger-${(index % 4) + 1}`}
                 style={{
                   textDecoration: 'none',
