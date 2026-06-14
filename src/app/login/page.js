@@ -138,7 +138,7 @@ export default function AuthPage() {
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'center', 
-      background: '#0f172a', 
+      background: 'var(--color-surface-950)', 
       position: 'relative',
       overflow: 'hidden',
       fontFamily: '"Inter", sans-serif'
@@ -148,22 +148,22 @@ export default function AuthPage() {
       <style dangerouslySetInnerHTML={{__html: `
         .premium-input {
           width: 100%;
-          background: rgba(30, 41, 59, 0.7);
-          border: 1px solid rgba(148, 163, 184, 0.2);
+          background: var(--color-surface-800);
+          border: 1px solid var(--color-border);
           border-radius: 12px;
           padding: 1.1rem 1.25rem;
           font-size: 1rem;
-          color: #f8fafc;
+          color: var(--color-surface-100);
           outline: none;
           transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .premium-input:focus {
-          background: rgba(30, 41, 59, 0.9);
+          background: var(--color-surface-900);
           border-color: #818cf8;
           box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.15);
         }
         .premium-input::placeholder {
-          color: #64748b;
+          color: var(--color-surface-400);
         }
         .premium-button {
           width: 100%;
@@ -226,12 +226,12 @@ export default function AuthPage() {
 
         <div style={{ 
           padding: '3rem', 
-          background: 'rgba(15, 23, 42, 0.65)', 
+          background: 'var(--color-surface-900)', 
           backdropFilter: 'blur(24px)',
           WebkitBackdropFilter: 'blur(24px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)', 
+          border: '1px solid var(--color-border)', 
           borderRadius: '24px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' 
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)' 
         }}>
           
           <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
@@ -246,10 +246,10 @@ export default function AuthPage() {
               </svg>
             </div>
 
-            <h1 style={{ fontSize: '2.25rem', fontWeight: 800, color: '#f8fafc', margin: 0, letterSpacing: '-0.02em' }}>
+            <h1 style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--color-surface-100)', margin: 0, letterSpacing: '-0.02em' }}>
               {mode === 'login' ? 'Welcome Back' : mode === 'register' ? 'Create Workspace' : mode === 'reset' ? 'Reset Password' : 'Check Email'}
             </h1>
-            <p style={{ color: '#94a3b8', fontSize: '0.95rem', marginTop: '0.75rem', lineHeight: 1.5 }}>
+            <p style={{ color: 'var(--color-surface-400)', fontSize: '0.95rem', marginTop: '0.75rem', lineHeight: 1.5 }}>
               {mode === 'login' ? 'Enter your credentials to access the vault.' : 
                mode === 'register' ? 'Use your corporate email to join.' : 
                mode === 'reset' ? 'Enter your email to receive a recovery link.' :
@@ -260,7 +260,7 @@ export default function AuthPage() {
           {error && (
             <div style={{ 
               background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid #ef4444', 
-              color: '#fca5a5', padding: '1rem', borderRadius: '8px', 
+              color: '#ef4444', padding: '1rem', borderRadius: '8px', 
               marginBottom: '1.5rem', fontSize: '0.875rem', lineHeight: 1.5,
               animation: 'fade-in 0.3s ease-out'
             }}>
@@ -281,7 +281,7 @@ export default function AuthPage() {
               <button type="submit" disabled={loading} className="premium-button">
                 {loading ? 'Authenticating securely...' : 'Sign In'}
               </button>
-              <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.9rem', marginTop: '1rem' }}>
+              <p style={{ textAlign: 'center', color: 'var(--color-surface-400)', fontSize: '0.9rem', marginTop: '1rem' }}>
                 New company? <span className="auth-link" onClick={() => setMode('register')}>Register here</span>
               </p>
             </form>
@@ -296,7 +296,7 @@ export default function AuthPage() {
               <button type="submit" disabled={loading} className="premium-button">
                 {loading ? 'Provisioning Workspace...' : 'Create Account'}
               </button>
-              <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.9rem', marginTop: '1rem' }}>
+              <p style={{ textAlign: 'center', color: 'var(--color-surface-400)', fontSize: '0.9rem', marginTop: '1rem' }}>
                 Already have an account? <span className="auth-link" onClick={() => setMode('login')}>Sign In</span>
               </p>
             </form>
@@ -305,12 +305,12 @@ export default function AuthPage() {
             {mode === 'verify' && (
             <div style={{ textAlign: 'center', padding: '1rem 0' }}>
               <div style={{ fontSize: '3.5rem', marginBottom: '1.5rem', animation: 'subtle-bounce 3s infinite' }}>✉️</div>
-              <h2 style={{ color: '#f8fafc', fontSize: '1.5rem', marginBottom: '0.75rem', fontWeight: 700 }}>Check Your Email</h2>
-              <p style={{ color: '#94a3b8', fontSize: '1rem', lineHeight: 1.6 }}>
+              <h2 style={{ color: 'var(--color-surface-100)', fontSize: '1.5rem', marginBottom: '0.75rem', fontWeight: 700 }}>Check Your Email</h2>
+              <p style={{ color: 'var(--color-surface-400)', fontSize: '1rem', lineHeight: 1.6 }}>
                 We've sent a secure link to <strong>{email}</strong>. <br/><br/>
                 Click the link in the email to securely verify your identity!
               </p>
-              <button onClick={() => setMode('login')} className="premium-button" style={{ background: '#1e293b', boxShadow: 'none', marginTop: '2rem' }}>
+              <button onClick={() => setMode('login')} className="premium-button" style={{ background: 'var(--color-surface-800)', boxShadow: 'none', marginTop: '2rem' }}>
                 Back to Sign In
               </button>
             </div>
@@ -322,7 +322,7 @@ export default function AuthPage() {
               <button type="submit" disabled={loading} className="premium-button">
                 {loading ? 'Sending Request...' : 'Send Recovery Link'}
               </button>
-              <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.9rem', marginTop: '1rem' }}>
+              <p style={{ textAlign: 'center', color: 'var(--color-surface-400)', fontSize: '0.9rem', marginTop: '1rem' }}>
                 Remembered it? <span className="auth-link" onClick={() => setMode('login')}>Sign In</span>
               </p>
             </form>
