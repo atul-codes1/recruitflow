@@ -306,6 +306,6 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Application submission error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }

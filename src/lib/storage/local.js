@@ -12,7 +12,8 @@ import path from 'path';
  */
 export async function uploadToLocal(fileBuffer, fileName, jobSlug) {
   try {
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', jobSlug || 'general');
+    const baseDir = process.env.NODE_ENV === 'production' ? '/tmp' : path.join(process.cwd(), 'public', 'uploads');
+    const uploadDir = path.join(baseDir, jobSlug || 'general');
     
     // Ensure the directory exists
     await mkdir(uploadDir, { recursive: true });
