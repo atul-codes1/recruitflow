@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+/**
+ * Job Postings Management API
+ * 
+ * Route: `/api/jobs/manage`
+ * 
+ * Handles editing (PATCH) and deleting (DELETE) existing jobs.
+ * Enforces RBAC (Role-Based Access Control) to ensure only 'admin' 
+ * users can modify job postings.
+ */
 export async function PATCH(request) {
   try {
     const data = await request.json();

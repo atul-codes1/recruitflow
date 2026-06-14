@@ -5,6 +5,18 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
+/**
+ * Public Job Application Page (Client Component)
+ * 
+ * Route: `/boards/[domain]/[slug]`
+ * 
+ * This is where a candidate actually applies for a specific job.
+ * It handles:
+ * 1. Fetching the job details via the `[slug]`.
+ * 2. File drag-and-drop validation for resumes (PDF/Word, <10MB).
+ * 3. Form submission to the `/api/apply` endpoint.
+ * 4. Tracking referrals via the `?ref=userId` URL parameter.
+ */
 function ApplyContent() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -95,11 +107,18 @@ function ApplyContent() {
       formData.append('job_slug', job.slug);
       formData.append('experience_level', experienceLevel);
       
+      // ------------------------------------------------------------------------
+      // RECRUITER ATTRIBUTION (Referral Tracking)
+      // ------------------------------------------------------------------------
+      // If the URL contains `?ref=some-uuid`, it means a specific recruiter 
+      // shared this link on LinkedIn/Twitter. We MUST pass this `ref` to the API
+      // so the backend can set `recruiter_id` and attribute the candidate to them.
       const ref = searchParams.get('ref');
       if (ref) {
         formData.append('ref', ref);
       }
 
+      // Send to the Ingestion Pipeline
       const response = await fetch('/api/apply', {
         method: 'POST',
         body: formData,
@@ -373,6 +392,13 @@ function ApplyContent() {
   );
 }
 
+/**
+ * Main Page Export
+ * 
+ * Wrapped in a React Suspense boundary because we use `useSearchParams()` 
+ * inside `ApplyContent` (for referral tracking). Next.js requires this 
+ * for static/client hybrid rendering.
+ */
 export default function ApplyPage() {
   return (
     <Suspense fallback={<div className="bg-gradient-hero bg-grid-pattern" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ fontSize: '2rem', animation: 'pulse-glow 2s infinite' }}>⚡</div></div>}>

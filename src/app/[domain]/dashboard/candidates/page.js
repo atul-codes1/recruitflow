@@ -4,6 +4,18 @@ import PageHeader from './PageHeader';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Candidates Pipeline Page (Server Component)
+ * 
+ * Route: `/[domain]/dashboard/candidates`
+ * 
+ * This server component fetches all applications securely before passing them 
+ * down to the `CandidatesClient` for interactive filtering.
+ * 
+ * RBAC Enforcement:
+ * - Admin: Fetches ALL applications in the workspace.
+ * - Recruiter: Fetches ONLY applications where `recruiter_id === user.id`.
+ */
 export default async function CandidatesPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

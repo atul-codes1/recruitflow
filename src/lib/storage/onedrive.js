@@ -1,5 +1,12 @@
 /**
- * Microsoft OneDrive Native Integration (OAuth 2.0 / Graph API)
+ * Microsoft OneDrive Native Integration
+ * 
+ * Handles uploading parsed resumes to a company's Microsoft 365 / OneDrive account
+ * using the Microsoft Graph API.
+ * 
+ * Requires:
+ * - A registered Azure AD App with `Files.ReadWrite.All` offline access.
+ * - `ONEDRIVE_CLIENT_ID` and `ONEDRIVE_CLIENT_SECRET` in `.env.local`.
  */
 
 export async function uploadToOneDrive(fileBuffer, fileName, jobSlug, config) {

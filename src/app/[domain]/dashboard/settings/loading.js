@@ -1,3 +1,9 @@
+/**
+ * Settings Page Loading Skeleton
+ * 
+ * Renders instantly while the server fetches the user's current cloud storage 
+ * configuration from Supabase.
+ */
 export default function SettingsLoading() {
   return (
     <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%', maxWidth: '800px' }}>

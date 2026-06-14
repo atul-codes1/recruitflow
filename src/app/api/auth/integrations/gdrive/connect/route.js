@@ -1,5 +1,15 @@
 import { NextResponse } from 'next/server';
 
+/**
+ * Google Drive OAuth 2.0 Initialization (Connect)
+ * 
+ * Route: `/api/auth/integrations/gdrive/connect`
+ * 
+ * Initiates the BYOS (Bring Your Own Storage) OAuth flow for Google Drive.
+ * Generates an authorization URL requesting offline access to Google Drive 
+ * and redirects the user to the Google Consent Screen. State is passed 
+ * to ensure we know which tenant (companyId/domain) is connecting.
+ */
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const companyId = searchParams.get('company_id');

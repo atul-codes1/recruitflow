@@ -4,6 +4,15 @@ import CopyButton from './CopyButton';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Recruiter Profile Page
+ * 
+ * Route: `/[domain]/dashboard/profile`
+ * 
+ * Displays the current user's personal details and their unique Recruiter Agent ID.
+ * The Agent ID (which is just `user.id`) is critical because they must paste it 
+ * into the Desktop Sync App to link their local filesystem to their specific account.
+ */
 export default async function ProfilePage() {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();

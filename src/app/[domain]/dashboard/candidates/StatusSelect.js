@@ -3,6 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+/**
+ * Kanban Status Dropdown (Client Component)
+ * 
+ * Renders an inline dropdown on the candidate row to allow recruiters 
+ * to quickly change a candidate's pipeline status. 
+ * Sends a PATCH request to `/api/applications/manage` and triggers a Next.js `router.refresh()` 
+ * to securely refetch data from the server.
+ */
 export default function StatusSelect({ application }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);

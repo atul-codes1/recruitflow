@@ -1,3 +1,9 @@
+/**
+ * Static Content Page Loading Skeleton
+ * 
+ * Used for static markdown-like pages (e.g., Privacy, Terms, Cookies)
+ * to provide a smooth transition.
+ */
 export default function ContentLoading() {
   return (
     <div className="min-h-screen bg-[var(--bg-base)] animate-in">

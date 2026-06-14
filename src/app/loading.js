@@ -1,3 +1,9 @@
+/**
+ * Root Loading Skeleton
+ * 
+ * Renders an instant full-page skeleton for the public job board while 
+ * the application boots up.
+ */
 export default function HomeLoading() {
   return (
     <div className="min-h-screen bg-[var(--bg-base)] animate-in">

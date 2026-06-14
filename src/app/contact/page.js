@@ -1,6 +1,15 @@
 import PublicHeader from '@/components/PublicHeader';
 import PublicFooter from '@/components/PublicFooter';
 
+/**
+ * Contact Us Page (Server Component)
+ * 
+ * Route: `/contact`
+ * 
+ * Static marketing page with a contact form. 
+ * Note: The form submission is currently a UI mock and needs wiring 
+ * to an email service (e.g., Resend, SendGrid) in the future.
+ */
 export default function ContactPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-surface-950)' }}>

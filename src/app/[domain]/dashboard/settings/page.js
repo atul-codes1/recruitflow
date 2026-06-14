@@ -4,6 +4,14 @@ import { revalidatePath } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Recruiter Settings Page (Server Component)
+ * 
+ * Route: `/[domain]/dashboard/settings`
+ * 
+ * Handles the configuration of third-party cloud storage (OneDrive, GDrive, Zoho).
+ * We fetch the current `storage_provider` and render dynamic "Connect/Disconnect" UI.
+ */
 export default async function SettingsPage({ params }) {
   const { domain } = await params;
   
@@ -20,15 +28,28 @@ export default async function SettingsPage({ params }) {
 
   const activeProvider = company.storage_provider; // 'onedrive', 'gdrive', 'zoho', or null
 
+  // ------------------------------------------------------------------------
+  // SERVER ACTIONS
+  // ------------------------------------------------------------------------
+
+  /**
+   * Next.js Server Action: Saves the Zoho folder ID
+   * Zoho requires a specific destination folder ID (not a path) to upload files.
+   */
   async function saveZohoFolder(formData) {
     "use server";
     const folderId = formData.get('folderId');
     if (!folderId) return;
     
+    // Use Admin client to bypass RLS for updating company config
     const admin = createAdminClient();
     const { data: comp } = await admin.from('companies').select('storage_config').eq('id', company.id).single();
+    
+    // Merge new config without overwriting existing tokens
     const newConfig = { ...(comp?.storage_config || {}), folderId };
     await admin.from('companies').update({ storage_config: newConfig }).eq('id', company.id);
+    
+    // Purge the cache to reflect the new state instantly
     revalidatePath(`/${domain}/dashboard/settings`);
   }
 

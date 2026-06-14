@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+/**
+ * Job Postings Core API
+ * 
+ * Route: `/api/jobs`
+ * 
+ * Handles fetching (GET) and creating (POST) jobs. 
+ * Relies on Supabase RLS (Row Level Security) policies to ensure users 
+ * can only see jobs belonging to their specific tenant (`company_id`).
+ * Note: Job creation is strictly limited to users with the 'admin' role.
+ */
 export async function GET() {
   try {
     const supabase = await createClient();

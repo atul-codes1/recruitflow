@@ -3,32 +3,50 @@ import { supabase } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase/server';
 
 /**
- * True Context-Window AI Search Engine
+ * POST /api/search
  * 
- * Instead of flawed keyword math and synonym matching, this engine 
- * extracts a lightweight JSON array of all candidates and drops them 
- * directly into Gemini 1.5 Flash's massive 1M token context window.
+ * ============================================================================
+ * TRUE CONTEXT-WINDOW AI SEARCH ENGINE
+ * ============================================================================
  * 
- * The AI reads the actual resumes live and returns a ranked JSON array.
+ * Traditional ATS search engines use flawed keyword math (TF-IDF) or basic SQL ILIKE.
+ * This engine uses a Two-Stage AI architecture to achieve human-like candidate matching:
+ * 
+ * Stage 1 (Retrieval): 
+ * Converts the recruiter's search query into a 768-Dimension vector using Google text-embedding-004.
+ * It then queries the Supabase pgvector database via RPC (`match_applications`) to retrieve 
+ * the top 200 most semantically relevant candidates.
+ * 
+ * Stage 2 (Reasoning):
+ * It takes the retrieved candidates, strips them down to a lightweight JSON context array,
+ * and drops them directly into Gemini 1.5 Flash's massive 1M token context window.
+ * The AI actually reads the resumes live and returns a ranked JSON array with human-readable 
+ * explanations for why they fit the search query.
  */
 
-// Simple dynamic model fetcher (no hardcoded models)
+/**
+ * Simple dynamic model fetcher to ensure we always use the latest, fastest Flash model available.
+ * It queries the Gemini API for supported models and caches the result.
+ * @param {string} apiKey - The Google Gemini API Key
+ * @returns {string} The model string (e.g., 'gemini-1.5-flash-latest')
+ */
 let cachedSearchModel = null;
 async function getSearchModel(apiKey) {
   if (cachedSearchModel) return cachedSearchModel;
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    if (!res.ok) return 'gemini-flash-latest';
+    if (!res.ok) return 'gemini-flash-latest'; // Fallback
     const data = await res.json();
+    // Find the fastest model that supports text generation
     const flashModels = data.models.filter(m => m.name.includes('flash') && m.supportedGenerationMethods?.includes('generateContent'));
     if (flashModels.length > 0) {
       cachedSearchModel = flashModels[0].name.replace('models/', '');
       return cachedSearchModel;
     }
   } catch (e) {
-    // ignore
+    console.error('[Search] Failed to fetch dynamic models, using fallback.');
   }
-  return 'gemini-flash-latest';
+  return 'gemini-1.5-flash-latest'; // Ultimate Fallback
 }
 
 export async function POST(request) {
@@ -39,7 +57,11 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Please enter a search query (at least 3 characters).' }, { status: 400 });
     }
 
-    // Step 1: Generate Vector Embedding for the Query
+    // ------------------------------------------------------------------------
+    // STEP 1: GENERATE VECTOR EMBEDDING FOR THE QUERY
+    // ------------------------------------------------------------------------
+    // To search the database semantically, we must translate the user's text query 
+    // into the exact same 768-D mathematical space as the resumes.
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
        return NextResponse.json({ error: 'Gemini API key not configured for AI search.' }, { status: 500 });
@@ -64,20 +86,25 @@ export async function POST(request) {
       console.warn('[Search] Failed to generate query embedding', e);
     }
 
-    // Step 2: Fetch Candidates (Stage 1 Vector Search Fallback to Full Scan)
+    // ------------------------------------------------------------------------
+    // STEP 2: FETCH CANDIDATES (Retrieval Augmented Generation - RAG)
+    // ------------------------------------------------------------------------
     let applications = [];
     let isVectorSearch = false;
     let totalCandidatesInDb = 0;
 
-    // Get total count for stats
+    // Get total count for UI stats
     const { count } = await supabase.from('applications').select('*', { count: 'exact', head: true });
     totalCandidatesInDb = count || 0;
 
     if (queryEmbedding) {
-      // Perform Stage 1: Vector Search in Supabase (Top 200)
+      // Stage 1: Vector Search in Supabase (Top 200)
+      // Calls the pgvector RPC function. The threshold is extremely low (0.1) because 
+      // we don't trust vector cosine similarity to make the final decision. We just want 
+      // the top 200 vaguely relevant people, and we will let the LLM decide the actual winners.
       const { data: matchedApps, error: matchErr } = await supabase.rpc('match_applications', {
         query_embedding: queryEmbedding,
-        match_threshold: 0.1, // very low threshold to allow Gemini to be the judge
+        match_threshold: 0.1, 
         match_count: 200
       });
       
@@ -85,7 +112,7 @@ export async function POST(request) {
         const matchedIds = matchedApps.map(m => m.id);
         const { data: appsWithRaw } = await supabase
           .from('applications')
-          .select('id, candidate_name, candidate_email, candidate_phone, experience_level, experience_years, skills, parsed_data, status, resume_filename, drive_web_url, job_id, created_at')
+          .select('id, candidate_name, candidate_email, candidate_phone, experience_level, experience_years, skills, parsed_data, status, resume_filename, drive_web_url, job_id, created_at, recruiter_id')
           .in('id', matchedIds);
           
         applications = appsWithRaw || [];
@@ -96,6 +123,10 @@ export async function POST(request) {
       }
     }
 
+    // Step 2B: Full DB Scan Fallback
+    // If the pgvector extension fails or the query embedding failed to generate,
+    // we pull EVERY candidate in the database and pass them all to Gemini.
+    // NOTE: This will fail if the DB grows larger than the Gemini Context Window (approx ~3,000 resumes).
     if (!isVectorSearch || applications.length === 0) {
       console.log(`[Search] Falling back to standard Context-Window search without vectors...`);
       const { data: appsWithRaw, error: errWithRaw } = await supabase
@@ -109,19 +140,23 @@ export async function POST(request) {
       applications = appsWithRaw || [];
     }
 
-    // Step 2.5: Enforce Role-Based Access Control (RBAC) Option B
+    // ------------------------------------------------------------------------
+    // STEP 3: ENFORCE ROLE-BASED ACCESS CONTROL (RBAC)
+    // ------------------------------------------------------------------------
+    // Important Security Step: The `supabase` client above is a generic service role client, 
+    // so it bypassed RLS. We must manually filter the candidates based on the logged-in user.
+    // Option B Implementation: Recruiters can ONLY search candidates they personally sourced.
     const serverSupabase = await createClient();
     const { data: { user } } = await serverSupabase.auth.getUser();
     let role = 'recruiter';
-    let myJobIds = [];
-
+    
     if (user) {
       const { data: profile } = await serverSupabase.from('profiles').select('role').eq('id', user.id).single();
       role = profile?.role || 'recruiter';
     }
 
     if (role !== 'admin') {
-      console.log(`[Search] Filtering context window candidates for Recruiter ID: ${user?.id || 'unauth'}`);
+      console.log(`[Search] RBAC Triggered: Restricting context window to Recruiter ID: ${user?.id || 'unauth'}`);
       applications = applications.filter(app => {
         return app.recruiter_id === user?.id;
       });
@@ -131,13 +166,16 @@ export async function POST(request) {
       return NextResponse.json({ results: [], message: 'No candidates in the database yet.', total_candidates: totalCandidatesInDb, matches_found: 0, query });
     }
 
-    // Step 3: Fetch jobs for UI mapping
+    // Step 3.5: Fetch jobs for UI mapping
     const { data: jobs } = await supabase.from('jobs').select('id, title, company');
     const jobMap = {};
     (jobs || []).forEach(j => { jobMap[j.id] = j; });
 
-    // Step 3: Build the lightweight context payload
-    // We only send the minimum data needed for the AI to judge the candidate
+    // ------------------------------------------------------------------------
+    // STEP 4: PREPARE THE CONTEXT PAYLOAD
+    // ------------------------------------------------------------------------
+    // Strip out all the heavy JSON, raw text, and system IDs. 
+    // We only send the minimum data needed for the AI to judge the candidate to save tokens.
     const candidateContext = applications.map(app => {
       return {
         id: app.id,
@@ -151,7 +189,11 @@ export async function POST(request) {
       };
     });
 
-    // Step 4: Call the True Context-Window AI
+    // ------------------------------------------------------------------------
+    // STEP 5: EXECUTE LLM REASONING
+    // ------------------------------------------------------------------------
+    // We pass the context payload to Gemini and force it to output a ranked JSON array.
+    // Temperature is kept at 0.1 to prevent hallucinations.
     const targetModel = await getSearchModel(apiKey);
     console.log(`[Search] Routing ${applications.length} candidates into ${targetModel} context window for query: "${query}"...`);
 
@@ -187,6 +229,7 @@ ${JSON.stringify(candidateContext, null, 2)}
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: aiPrompt }] }],
+          // Force JSON output to prevent the AI from wrapping it in markdown or chatty text
           generationConfig: { temperature: 0.1, responseMimeType: "application/json" },
         }),
       }
@@ -208,7 +251,11 @@ ${JSON.stringify(candidateContext, null, 2)}
       return NextResponse.json({ error: 'AI returned invalid JSON.' }, { status: 500 });
     }
 
-    // Step 5: Merge the AI rankings back with the full candidate data for the UI
+    // ------------------------------------------------------------------------
+    // STEP 6: DATA RE-HYDRATION
+    // ------------------------------------------------------------------------
+    // Merge the AI rankings (which only have the ID and Score) back with the 
+    // full candidate data (names, links, etc.) so the UI can display the rich profile cards.
     const finalResults = [];
     for (const ranked of aiRankings) {
       const app = applications.find(a => a.id === ranked.id);
@@ -218,7 +265,7 @@ ${JSON.stringify(candidateContext, null, 2)}
           id: app.id,
           score: ranked.score,
           reason: ranked.reason,
-          matchedKeywords: 0, // No longer used, but kept for UI compatibility
+          matchedKeywords: 0, // Legacy fallback mapping
           candidate_name: app.parsed_data?.candidate?.name || app.candidate_name || 'Unknown',
           candidate_email: app.parsed_data?.candidate?.contact?.email || app.candidate_email || '',
           candidate_phone: app.parsed_data?.candidate?.contact?.phone || app.candidate_phone || '',

@@ -1,5 +1,12 @@
 import Link from 'next/link';
 
+/**
+ * Public Header Component
+ * 
+ * Used exclusively on the `/boards/[domain]` routes to provide a branded 
+ * navigation bar for candidates browsing jobs. Displays the company name 
+ * dynamically fetched from the tenant.
+ */
 export default function PublicHeader({ companyName }) {
   return (
     <header style={{ 

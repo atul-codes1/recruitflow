@@ -1,6 +1,13 @@
 import PublicHeader from '@/components/PublicHeader';
 import PublicFooter from '@/components/PublicFooter';
 
+/**
+ * About Us Page (Server Component)
+ * 
+ * Route: `/about`
+ * 
+ * Static marketing page describing the mission and vision of RecruitFlow.
+ */
 export default function AboutPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-surface-950)' }}>

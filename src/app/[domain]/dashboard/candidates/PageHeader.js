@@ -2,6 +2,13 @@
 
 import { useState } from 'react';
 
+/**
+ * Candidates Page Header (Client Component)
+ * 
+ * Displays the page title and a manual trigger button for the AI Processing Queue.
+ * If candidates applied while the QStash worker was down, a recruiter can click
+ * the "Process AI Queue" button to manually trigger `POST /api/cron/process-queue`.
+ */
 export default function PageHeader() {
 
 

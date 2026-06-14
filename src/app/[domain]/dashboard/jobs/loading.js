@@ -1,3 +1,8 @@
+/**
+ * Job Postings Loading Skeleton
+ * 
+ * Renders instantly while the server fetches job postings from Supabase.
+ */
 export default function JobsLoading() {
   return (
     <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>

@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+/**
+ * Secure Logout API
+ * 
+ * Route: `/api/logout`
+ * 
+ * Invalidates the Supabase session and explicitly sets Cache-Control headers 
+ * to prevent the browser's bfcache from retaining authenticated DOM content.
+ */
 export async function POST() {
   const cookieStore = await cookies();
   const supabase = createServerClient(

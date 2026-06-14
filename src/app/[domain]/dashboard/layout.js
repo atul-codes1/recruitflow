@@ -2,6 +2,21 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import DashboardHeader from './DashboardHeader';
 
+/**
+ * Recruiter Dashboard Layout (Server Component)
+ * 
+ * Route: `/[domain]/dashboard/*`
+ * 
+ * This is the master layout for the internal recruiter dashboard.
+ * It is responsible for STRICT tenant isolation.
+ * 
+ * Flow:
+ * 1. Verify user is logged in.
+ * 2. Fetch user's assigned `company_id` and `domain`.
+ * 3. Ensure the URL `[domain]` matches their assigned domain.
+ * 4. If there's a mismatch (e.g., User A tries to access Company B's dashboard), 
+ *    they are forcefully redirected to their own domain.
+ */
 export default async function DashboardLayout({ children, params }) {
   const { domain } = await params;
   
@@ -12,7 +27,10 @@ export default async function DashboardLayout({ children, params }) {
     redirect('/login');
   }
 
-  // Fetch the user's company domain and ID
+  // ------------------------------------------------------------------------
+  // TENANT ISOLATION & GHOST SESSION HANDLING
+  // ------------------------------------------------------------------------
+  // Fetch the user's company domain and ID via the `profiles` join
   const { data: profile } = await supabase
     .from('profiles')
     .select('full_name, role, companies(id, domain)')
@@ -23,11 +41,13 @@ export default async function DashboardLayout({ children, params }) {
   const companyId = profile?.companies?.id;
 
   if (!userDomain) {
-    // Edge Case: No workspace found (Ghost session). Force them to log out.
+    // Edge Case: Ghost session. 
+    // This happens if an admin deleted the workspace, but the user still has a valid JWT cookie.
+    // Force them to log out to clear the stale token.
     redirect('/login?error=GhostSession');
   }
 
-  // Security Lock: If they try to access someone else's workspace, boot them to their own
+  // Security Lock: If they try to access someone else's workspace URL, boot them to their own
   if (domain !== userDomain) {
     redirect(`/${userDomain}/dashboard`);
   }

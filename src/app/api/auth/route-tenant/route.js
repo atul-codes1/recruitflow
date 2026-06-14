@@ -1,6 +1,19 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
+/**
+ * Global Tenant Router API
+ * 
+ * Route: `/api/auth/route-tenant`
+ * 
+ * Critical security middleware that acts as the traffic controller after 
+ * successful authentication. It fetches the user's assigned company domain 
+ * and explicitly routes them to `/[domain]/dashboard`.
+ * 
+ * If a user lacks a domain (e.g., ghost session or legacy account), it 
+ * forcefully logs them out and requires re-registration to prevent un-scoped 
+ * data access.
+ */
 export async function GET(request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

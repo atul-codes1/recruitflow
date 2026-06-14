@@ -1,6 +1,14 @@
 import PublicHeader from '@/components/PublicHeader';
 import PublicFooter from '@/components/PublicFooter';
 
+/**
+ * System Status Page (Server Component)
+ * 
+ * Route: `/status`
+ * 
+ * Public dashboard showing the health of the platform's microservices. 
+ * Currently displays hardcoded "100% Uptime" for marketing trust.
+ */
 export default function StatusPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-surface-950)' }}>

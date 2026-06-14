@@ -2,6 +2,14 @@
 
 import { useState, useEffect } from 'react';
 
+/**
+ * Global Theme Toggle (Client Component)
+ * 
+ * Floating action button that toggles the site between Light and Dark mode.
+ * Persists the user's preference in `localStorage` and falls back to their
+ * OS preference (`prefers-color-scheme`) if no stored value exists.
+ * Injects `data-theme` on the `<html>` element which is intercepted by `globals.css`.
+ */
 export default function ThemeToggle() {
   const [theme, setTheme] = useState('dark');
   const [mounted, setMounted] = useState(false);

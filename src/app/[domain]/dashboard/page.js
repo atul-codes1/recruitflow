@@ -1,34 +1,62 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic'; // Ensures this page is never statically cached.
 
+/**
+ * Dashboard Home Page (Server Component)
+ * 
+ * This is the landing page for the Recruiter Dashboard (`/[domain]/dashboard`).
+ * It runs entirely on the server, fetching initial statistics and recent applications
+ * before sending HTML to the client.
+ * 
+ * RBAC Enforcement:
+ * - If the user is an 'admin', they see aggregate stats and applications for the ENTIRE workspace.
+ * - If the user is a 'recruiter', they ONLY see stats and applications where `recruiter_id === user.id`.
+ */
 export default async function DashboardPage() {
+  // ------------------------------------------------------------------------
+  // AUTHENTICATION & RBAC
+  // ------------------------------------------------------------------------
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  
+  // Fetch user role ('admin' vs 'recruiter')
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
   const role = profile?.role || 'recruiter';
 
+  // ------------------------------------------------------------------------
+  // DATA FETCHING
+  // ------------------------------------------------------------------------
+  
+  // Fetch all active jobs for metric calculation
   const { data: jobs } = await supabase.from('jobs').select('*');
 
+  // Build the applications query
   let appQuery = supabase.from('applications').select('*').order('created_at', { ascending: false });
 
+  // STRICT RBAC: Recruiters can only see candidates they sourced themselves.
   if (role !== 'admin') {
     appQuery = appQuery.eq('recruiter_id', user.id);
   }
 
   const { data: applications } = await appQuery;
 
-  // Calculate Dashboard Stats
+  // ------------------------------------------------------------------------
+  // DASHBOARD STATISTICS CALCULATION
+  // ------------------------------------------------------------------------
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  
   let totalApplications = 0;
   let shortlisted = 0;
   let newToday = 0;
 
+  // Aggregate metrics locally (cheaper than multiple Supabase COUNT queries)
   for (const a of (applications || [])) {
     totalApplications++;
     if (a.status === 'shortlisted' || a.status === 'hired') shortlisted++;
+    
     const appDate = new Date(a.created_at).getTime();
     if (appDate >= startOfToday) newToday++;
   }
@@ -38,7 +66,7 @@ export default async function DashboardPage() {
   const stats = {
     total: totalApplications,
     today: newToday,
-    this_week: newToday, // placeholder for weekly delta
+    this_week: newToday, // placeholder for weekly delta logic
     by_status: { shortlisted },
     active_jobs: activeJobs,
   };

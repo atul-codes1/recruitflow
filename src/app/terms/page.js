@@ -1,6 +1,13 @@
 import PublicHeader from '@/components/PublicHeader';
 import PublicFooter from '@/components/PublicFooter';
 
+/**
+ * Terms of Service Page (Server Component)
+ * 
+ * Route: `/terms`
+ * 
+ * Static legal page outlining usage rules and account responsibilities.
+ */
 export default function TermsPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-surface-950)' }}>

@@ -18,6 +18,15 @@ export const metadata = {
   keywords: 'jobs, careers, apply, resume, hiring',
 };
 
+/**
+ * Root Layout (Server Component)
+ * 
+ * Route: `/`
+ * 
+ * The outermost Next.js layout that wraps EVERY page in the application.
+ * It is responsible for injecting global CSS, Next/Font CSS variables, 
+ * and rendering the global `ThemeToggle` client component.
+ */
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${inter.variable} ${outfit.variable}`}>

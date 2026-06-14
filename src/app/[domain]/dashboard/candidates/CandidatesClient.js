@@ -3,22 +3,46 @@
 import { useState, useEffect } from 'react';
 import StatusSelect from './StatusSelect';
 
+/**
+ * CandidatesClient
+ * 
+ * This is the primary UI component for the "All Candidates" dashboard view.
+ * It renders the data table and handles all client-side filtering (Experience, Date, Role, Status).
+ * 
+ * @param {Array} initialApplications - The initial array of candidate applications fetched from the server.
+ * @param {Array} jobs - The list of jobs belonging to the current workspace (used for the Role filter).
+ */
 export default function CandidatesClient({ initialApplications, jobs }) {
+  // ------------------------------------------------------------------------
+  // STATE MANAGEMENT
+  // ------------------------------------------------------------------------
   const [applications, setApplications] = useState(initialApplications);
+  
+  // Filter States
   const [expFilter, setExpFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  
+  // Optional states for modal expansions (if implemented in the future)
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [isReparsing, setIsReparsing] = useState(false);
 
 
 
+  // Ensure local state updates if server props change (e.g., after a revalidation)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setApplications(initialApplications);
   }, [initialApplications]);
 
+  // ------------------------------------------------------------------------
+  // UTILITY FUNCTIONS
+  // ------------------------------------------------------------------------
+
+  /**
+   * Formats a raw ISO date string into a user-friendly Date and Time string.
+   */
   const formatDate = (dateString) => {
     const d = new Date(dateString);
     const date = String(d.getDate()).padStart(2, '0') + '-' + 
@@ -31,6 +55,10 @@ export default function CandidatesClient({ initialApplications, jobs }) {
     return { date, time };
   };
 
+  /**
+   * Helper function for the Date filter.
+   * Checks if a given timestamp is within the last `days` days.
+   */
   const isWithinDays = (dateString, days) => {
     const d = new Date(dateString);
     const now = new Date();
@@ -38,35 +66,41 @@ export default function CandidatesClient({ initialApplications, jobs }) {
     return diff <= days * 24 * 60 * 60 * 1000;
   };
 
+  // ------------------------------------------------------------------------
+  // FILTERING LOGIC
+  // ------------------------------------------------------------------------
+  // We compute the filtered applications array on the fly during every render.
+  // This avoids keeping a duplicate "filteredApplications" state and prevents sync issues.
   const filteredApps = applications.filter((app) => {
-    // Experience Filter
+    // 1. Experience Filter
     if (expFilter !== 'all') {
       const appExp = app.experience_level || '';
       if (appExp !== expFilter) return false;
     }
 
-    // Date Filter
+    // 2. Date Filter
     if (dateFilter !== 'all') {
       if (dateFilter === 'today' && !isWithinDays(app.created_at, 1)) return false;
       if (dateFilter === 'week' && !isWithinDays(app.created_at, 7)) return false;
       if (dateFilter === 'month' && !isWithinDays(app.created_at, 30)) return false;
     }
 
-    // Role Filter
+    // 3. Role/Job Filter
     if (roleFilter !== 'all') {
       if (roleFilter === 'general_pool') {
+        // General Pool candidates are not attached to any specific job (job_id is null)
         if (app.job_id !== null && app.job_id !== undefined) return false;
       } else {
         if (app.job_id !== roleFilter) return false;
       }
     }
 
-    // Status Filter
+    // 4. Status Filter (e.g., Unreviewed, Shortlisted)
     if (statusFilter !== 'all') {
       if (app.status !== statusFilter) return false;
     }
 
-    return true;
+    return true; // Keep candidate if all active filters pass
   });
 
   return (
@@ -250,12 +284,16 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                 const job = jobs.find(j => j.id === app.job_id);
                 return (
                   <tr key={app.id} className="hover-row">
+                    
+                    {/* COLUMN: Candidate Name & AI Processing Status */}
                     <td>
                       <div style={{ fontWeight: 600, color: 'var(--color-surface-100)', fontSize: '0.875rem', letterSpacing: '0.01em', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: app.status === 'hired' ? '#10b981' : app.status === 'rejected' ? '#ef4444' : '#6366f1' }}></div>
                           {app.parsed_data?.candidate?.name || app.candidate_name || 'Anonymous Applicant'}
                         </div>
+                        
+                        {/* Dynamic AI Status Indicator. Will show while QStash is processing the resume. */}
                         {app.ai_status && app.ai_status !== 'completed' && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <span className={`badge badge-${app.ai_status}`} style={{ fontSize: '0.65rem' }}>
@@ -265,23 +303,31 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                         )}
                       </div>
                     </td>
+                    
+                    {/* COLUMN: Phone */}
                     <td>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-surface-300)', display: 'flex', alignItems: 'center', gap: '0.375rem', whiteSpace: 'nowrap' }}>
                         <span style={{ opacity: 0.7 }}>📱</span> {(app.parsed_data?.candidate?.contact?.phone || app.candidate_phone || 'N/A').replace(/\n/g, '').trim()}
                       </div>
                     </td>
+                    
+                    {/* COLUMN: Email */}
                     <td>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-surface-300)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                         <span style={{ opacity: 0.7 }}>📧</span> {app.parsed_data?.candidate?.contact?.email || app.candidate_email || 'N/A'}
                       </div>
                     </td>
+                    {/* COLUMN: Experience Validation */}
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        {/* User-selected experience from the apply form */}
                         {app.experience_level && (
                           <div style={{ fontSize: '0.75rem', color: 'var(--color-surface-100)', background: 'var(--bg-subtle)', padding: '0.125rem 0.5rem', borderRadius: '4px', width: 'fit-content' }}>
                             {app.experience_level}
                           </div>
                         )}
+                        
+                        {/* AI-calculated total years of experience. We show this to let recruiters spot liars instantly. */}
                         {(app.parsed_data?.professional_narrative?.years_of_experience_calculated !== null && app.parsed_data?.professional_narrative?.years_of_experience_calculated !== undefined) && (
                           <div style={{ 
                             padding: '0.125rem 0.375rem', 
@@ -300,6 +346,7 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                         )}
                       </div>
                     </td>
+                    {/* COLUMN: Job Context */}
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 500, color: app.job_id ? '#93c5fd' : '#c084fc', fontSize: '0.8125rem' }}>
@@ -312,19 +359,27 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                         )}
                       </div>
                     </td>
+                    
+                    {/* COLUMN: Date Applied */}
                     <td>
                       <div style={{ fontSize: '0.75rem', fontWeight: 500 }}>{formatDate(app.created_at).date}</div>
                       <div style={{ fontSize: '0.65rem', color: 'var(--color-surface-400)' }}>{formatDate(app.created_at).time}</div>
                     </td>
+                    
+                    {/* COLUMN: Kanban Status */}
                     <td onClick={(e) => e.stopPropagation()}>
                       <StatusSelect application={app} />
                     </td>
+                    
+                    {/* COLUMN: Resume Link */}
                     <td onClick={(e) => e.stopPropagation()}>
                       {app.drive_web_url ? (
+                        // Opens the native Google Drive viewer so they don't have to download the file
                         <a href={app.drive_web_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="btn-secondary btn-sm" style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem' }}>
                           View Resume ↗
                         </a>
                       ) : app.local_path ? (
+                        // Used during local development when BYOS isn't connected
                         <span className="badge badge-reviewed" style={{ fontSize: '0.65rem' }}>Saved locally</span>
                       ) : (
                         <span style={{ fontSize: '0.7rem', color: 'var(--color-surface-500)' }}>No resume</span>

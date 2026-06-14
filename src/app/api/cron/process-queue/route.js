@@ -2,6 +2,17 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Client } from "@upstash/qstash";
 
+/**
+ * Resume Processing Queue Engine (CRON / Manual)
+ * 
+ * Route: `/api/cron/process-queue`
+ * 
+ * Scans the `applications` table for resumes stuck in 'queued', 'failed', 
+ * or 'uploading' states. Dispatches these stuck jobs to the Upstash QStash 
+ * background worker (`/api/worker/process-resume`).
+ * 
+ * Falls back to synchronous execution when running locally (if QSTASH_TOKEN is missing).
+ */
 export async function POST(request) {
   try {
     const supabaseAdmin = createAdminClient();

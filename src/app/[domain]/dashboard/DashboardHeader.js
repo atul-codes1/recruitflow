@@ -4,6 +4,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
+/**
+ * Dashboard Navigation Header (Client Component)
+ * 
+ * Renders the top navigation bar for the recruiter dashboard.
+ * Takes the `domain` (for routing) and `profile` (for displaying name/initials).
+ */
 export default function DashboardHeader({ domain, profile }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -11,9 +17,14 @@ export default function DashboardHeader({ domain, profile }) {
   const router = useRouter();
 
   const handleLogout = async () => {
+    // 1. Destroy the session cookie via our API route
     await fetch('/api/logout', { method: 'POST' });
-    // Use a hard redirect instead of router.push() to completely clear the bfcache
-    // This ensures that clicking the 'Back' button in the browser will not restore the authenticated DOM.
+    
+    // 2. bfcache Preventer
+    // We use a hard `window.location.href` redirect instead of Next.js `router.push()`.
+    // Why? `router.push()` leverages the bfcache (Back-Forward Cache). If the user
+    // clicked the browser "Back" button after logging out, they would see the authenticated
+    // DOM (even though API calls would fail). A hard redirect flushes the Next.js cache.
     window.location.href = '/login';
   };
 

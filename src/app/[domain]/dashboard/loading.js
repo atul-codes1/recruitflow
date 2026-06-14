@@ -1,3 +1,9 @@
+/**
+ * Recruiter Dashboard Loading Skeleton
+ * 
+ * Uses Next.js App Router conventions to display a complex layout skeleton 
+ * instantly while server-side data (like Supabase stats) is being fetched.
+ */
 export default function DashboardLoading() {
   return (
     <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>

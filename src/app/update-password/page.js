@@ -3,6 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+/**
+ * Update Password Page (Client Component)
+ * 
+ * Route: `/update-password`
+ * 
+ * Users are redirected here by Supabase Auth after clicking a "Reset Password" 
+ * email link. Submitting the form securely updates their password via `/api/auth/update`.
+ */
 export default function UpdatePasswordPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

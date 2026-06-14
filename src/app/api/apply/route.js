@@ -20,6 +20,24 @@ import { StorageFactory } from '@/lib/storage/index';
 import { Client } from "@upstash/qstash";
 import crypto from 'crypto';
 
+/**
+ * POST /api/apply
+ * 
+ * Handles organic job applications from the public job board.
+ * 
+ * Flow:
+ * 1. Validate the job slug and file format.
+ * 2. Generate a SHA-256 hash of the file to check for duplicates across the company workspace.
+ * 3. [Deduplication] If a duplicate is found:
+ *    - Reject if the candidate applied to the EXACT same job via the EXACT same referral link (Spam prevention).
+ *    - Otherwise, clone the AI-parsed data from the existing application to save Gemini tokens and processing time.
+ * 4. Upload the raw file to the company's connected cloud storage (Google Drive, OneDrive, etc.).
+ * 5. Insert a placeholder row into the Supabase `applications` table (`ai_status: 'queued'`).
+ * 6. Offload the heavy AI processing (parsing, embedding, etc.) to a background worker via Upstash QStash.
+ * 
+ * @param {Request} request - The incoming HTTP request containing the multipart/form-data.
+ * @returns {NextResponse} JSON response containing the success status and application ID.
+ */
 export async function POST(request) {
   try {
     const formData = await request.formData();
@@ -34,7 +52,11 @@ export async function POST(request) {
 
     const supabaseAdmin = createAdminClient();
 
-    // 1. Validate Job & Fetch Company Storage Config
+    // ------------------------------------------------------------------------
+    // 1. VALIDATION & CONFIGURATION FETCH
+    // ------------------------------------------------------------------------
+    // Fetch the job details and the company's storage configuration.
+    // The storage_config dictates where the file actually gets uploaded (e.g., GDrive vs OneDrive).
     const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
       .select(`
@@ -44,14 +66,17 @@ export async function POST(request) {
         companies:company_id (storage_provider, storage_config)
       `)
       .eq('slug', jobSlug)
-      .eq('is_active', true)
+      .eq('is_active', true) // Only allow applications for active jobs
       .single();
 
     if (jobError || !job) {
       return NextResponse.json({ error: 'Job not found or inactive' }, { status: 404 });
     }
 
-    // Convert File to Buffer
+    // ------------------------------------------------------------------------
+    // 2. FILE PREPARATION
+    // ------------------------------------------------------------------------
+    // Convert File to Buffer for hashing and uploading
     const arrayBuffer = await resume.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
@@ -68,9 +93,11 @@ export async function POST(request) {
     // ==========================================
     // PHASE 2: GLOBAL DEDUPLICATION ENGINE
     // ==========================================
+    // Generate a unique fingerprint for the file using SHA-256. 
+    // This allows us to recognize if a candidate applies to multiple jobs at the same company using the same resume.
     const fileHash = crypto.createHash('sha256').update(buffer).digest('hex');
     
-    // Check if this exact file has already been uploaded to this company workspace
+    // Query the database to see if this exact file hash already exists within this company's workspace.
     const { data: duplicateApps } = await supabaseAdmin
       .from('applications')
       .select('*')
@@ -84,18 +111,21 @@ export async function POST(request) {
       const existingApp = duplicateApps[0]; // Most recent duplicate
       
       // Edge Case 1: The Spammer (Same Job, Same Recruiter)
+      // If the candidate applied to this exact job via this exact referral link already, block them.
       const isSpam = duplicateApps.some(app => app.job_id === job.id && app.recruiter_id === (ref || null));
       if (isSpam) {
         console.warn(`[Apply] Spam blocked: Candidate already applied to this job via this recruiter.`);
         return NextResponse.json({ error: 'You have already applied for this position.' }, { status: 400 });
       }
 
-      // Edge Case 3: The Poisoned Cache (Existing app failed to parse)
-      // Only clone if the AI actually finished parsing it. Otherwise, force a fresh upload!
+      // Edge Case 2: The Poisoned Cache (Existing app failed to parse)
+      // We only want to clone the data if the existing application successfully finished AI parsing.
+      // If it failed or is still uploading, we force a fresh upload and process it again.
       if (existingApp.ai_status === 'completed') {
         console.log(`[Apply] Cloning existing AI parsed data for recruiter ${ref || 'pool'}...`);
         
-        // Clone the application without hitting Google Drive or Groq/Gemini!
+        // Clone the application. This completely bypasses the Cloud Storage upload and the Gemini API call!
+        // This saves API costs and returns instantly to the user.
         const { data: clonedApp, error: cloneError } = await supabaseAdmin
           .from('applications')
           .insert({
@@ -134,7 +164,11 @@ export async function POST(request) {
       }
     }
 
-    // STEP 1: Upload dynamically via the Storage Factory (BYOS)
+    // ------------------------------------------------------------------------
+    // 3. CLOUD STORAGE UPLOAD
+    // ------------------------------------------------------------------------
+    // Upload dynamically via the Storage Factory (BYOS - Bring Your Own Storage architecture).
+    // This routes the file to the correct OAuth integration based on `companies.storage_provider`.
     console.log(`[Apply] Routing ${fileName} to ${job.companies?.storage_provider || 'unconfigured'}...`);
     const uploadResult = await StorageFactory.upload(
       job.companies?.storage_provider,
@@ -160,13 +194,16 @@ export async function POST(request) {
         .eq('id', job.company_id);
     }
 
-    // STEP 2: Fast Database Insert (Mark as Queued)
+    // ------------------------------------------------------------------------
+    // 4. DATABASE INSERTION
+    // ------------------------------------------------------------------------
+    // Create a fast, initial record in the database so the recruiter sees it immediately in the UI.
     const { data: application, error: appError } = await supabaseAdmin
       .from('applications')
       .insert({
         job_id: job.id,
-        company_id: job.company_id, // Link directly to the company workspace
-        recruiter_id: ref || null, // Phase 1.10 (Option A): Assign to the referring Recruiter, else Company Pool
+        company_id: job.company_id, // Link directly to the company workspace (Multi-tenant requirement)
+        recruiter_id: ref || null, // Assign to the referring Recruiter (if URL had ?ref=ID), else Company Pool
         candidate_name: 'Processing Resume...',
         candidate_email: '',
         candidate_phone: '',
@@ -179,8 +216,8 @@ export async function POST(request) {
         skills: [],
         parsed_data: null,
         status: 'unreviewed', 
-        ai_status: 'queued',
-        file_hash: fileHash // Save hash for future deduplication!
+        ai_status: 'queued', // UI will display a loading spinner for this status
+        file_hash: fileHash // Save the hash so future uploads can be cloned instead of processed!
       })
       .select()
       .single();
@@ -190,14 +227,20 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Failed to submit application.' }, { status: 500 });
     }
 
-    // STEP 3: Enterprise Background Processing (Hybrid)
+    // ------------------------------------------------------------------------
+    // 5. ASYNCHRONOUS AI PROCESSING DISPATCH
+    // ------------------------------------------------------------------------
+    // This is the hybrid architecture. Processing a PDF with Gemini takes ~5-15 seconds.
+    // If we wait, Vercel will time out the request (10s max on free tier).
+    
     if (process.env.NODE_ENV !== 'production' || !process.env.QSTASH_TOKEN) {
-      // LOCAL DEVELOPMENT (or no QStash Token): Process synchronously in background
-      // Upstash cloud cannot reach your local localhost:3000, so we use after() locally.
+      // DEVELOPMENT FALLBACK:
+      // Upstash cloud cannot reach `localhost`, so we use Next.js experimental `after()` to process in the background.
       console.log('[Apply] Running in Local Dev (or missing QStash). Using synchronous Next.js after() to process.');
       const { after } = require('next/server');
       after(async () => {
         try {
+          // Trigger the worker API locally
           const res = await fetch(`http://localhost:${process.env.PORT || 3000}/api/worker/process-resume`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -217,7 +260,9 @@ export async function POST(request) {
         }
       });
     } else {
-      // PRODUCTION ENTERPRISE: Push to Upstash Queue
+      // PRODUCTION ENTERPRISE:
+      // Push the job to Upstash QStash. QStash will reliably POST the payload to our worker API.
+      // If the worker fails, QStash will automatically retry it with exponential backoff.
       try {
         const qstash = new Client({ token: process.env.QSTASH_TOKEN });
         
@@ -251,7 +296,10 @@ export async function POST(request) {
       }
     }
 
-    // STEP 4: RESPOND TO THE USER IMMEDIATELY
+    // ------------------------------------------------------------------------
+    // 6. INSTANT RESPONSE
+    // ------------------------------------------------------------------------
+    // Because parsing is offloaded, we return 200 OK to the candidate instantly (<1 second).
     return NextResponse.json({ success: true, applicationId: application.id });
 
   } catch (error) {

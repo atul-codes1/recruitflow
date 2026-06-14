@@ -1,6 +1,13 @@
 import PublicHeader from '@/components/PublicHeader';
 import PublicFooter from '@/components/PublicFooter';
 
+/**
+ * Privacy Policy Page (Server Component)
+ * 
+ * Route: `/privacy`
+ * 
+ * Static legal page detailing data collection policies.
+ */
 export default function PrivacyPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-surface-950)' }}>

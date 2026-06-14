@@ -1,17 +1,23 @@
 import fs from 'fs';
 import path from 'path';
-
-/**
- * Google Drive Integration via googleapis (Stub)
- * 
- * Setup instructions:
- * 1. Go to Google Cloud Console
- * 2. Create a Service Account and download the JSON key
- * 3. Add Project ID, Client Email, and Private Key to settings
- */
-
 import { google } from 'googleapis';
 import { Readable } from 'stream';
+
+/**
+ * [LEGACY] Google Drive Service Account Integration
+ * 
+ * This was the original storage mechanism before we shifted to the 
+ * "Bring Your Own Storage" (BYOS) multi-tenant architecture. 
+ * It relies on a single GCP Service Account JSON key to upload files to a central drive.
+ * 
+ * It is currently maintained strictly as a fallback in the Storage Factory (`src/lib/storage/index.js`) 
+ * for local development or for companies that haven't connected their own OneDrive/Zoho accounts.
+ * 
+ * Features:
+ * 1. Uploads buffer directly to Google Drive.
+ * 2. Auto-creates 'RecruitFlow Resumes' folder if missing.
+ * 3. Gracefully falls back to Local FS (`saveLocally()`) if .env variables are missing.
+ */
 
 /**
  * Upload a file to Google Drive.

@@ -1,3 +1,8 @@
+/**
+ * AI Semantic Search Loading Skeleton
+ * 
+ * Renders instantly while the Next.js App Router fetches the page component.
+ */
 export default function SearchLoading() {
   return (
     <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>

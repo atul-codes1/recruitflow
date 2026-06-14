@@ -1,6 +1,16 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
+/**
+ * Password Reset Initialization API
+ * 
+ * Route: `/api/auth/reset`
+ * 
+ * Triggers the Supabase `resetPasswordForEmail` flow.
+ * Note the `redirectTo` URL: it routes back through our Auth Callback
+ * with a `next` parameter to ensure the SSR cookie is set before routing 
+ * the user to the `/update-password` page.
+ */
 export async function POST(request) {
   try {
     const { email } = await request.json();

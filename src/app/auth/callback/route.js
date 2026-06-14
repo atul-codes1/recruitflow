@@ -2,6 +2,22 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 
+/**
+ * Supabase Auth Callback & JIT Provisioning
+ * 
+ * Route: `/auth/callback`
+ * 
+ * This is the heart of the "Zero Friction Onboarding" architecture. 
+ * When a user registers or clicks a Magic Link, they land here. 
+ * 
+ * Flow:
+ * 1. Exchanges the Auth `code` for an active secure session.
+ * 2. Parses their email domain (e.g. `jane@acme.com` -> `acme.com`).
+ * 3. If `acme.com` does not exist in `companies`, it auto-generates the tenant 
+ *    workspace and promotes Jane to 'admin' (The Pioneer).
+ * 4. If `acme.com` DOES exist, it adds Jane as a 'recruiter' to that tenant.
+ * 5. Redirects to `/api/auth/route-tenant` for final dashboard routing.
+ */
 export async function GET(request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');

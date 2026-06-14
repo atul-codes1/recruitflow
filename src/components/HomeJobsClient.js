@@ -2,6 +2,13 @@
 
 import Link from 'next/link';
 
+/**
+ * Public Job Board Grid (Client Component)
+ * 
+ * Used exclusively on the `/boards/[domain]` page.
+ * Renders a visually appealing, animated grid of open positions for a 
+ * specific tenant. Clicking a job routes the candidate to the application page.
+ */
 export default function HomeJobsClient({ domain, jobs }) {
 
   return (

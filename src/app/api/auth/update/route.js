@@ -1,6 +1,14 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
+/**
+ * Password Update API Route
+ * 
+ * Route: `/api/auth/update`
+ * 
+ * Securely updates a user's password using the active Supabase session.
+ * Used exclusively by the `/update-password` page after a recovery link is clicked.
+ */
 export async function POST(request) {
   try {
     const { newPassword } = await request.json();

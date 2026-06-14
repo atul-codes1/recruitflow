@@ -5,16 +5,40 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+/**
+ * JobsClient Component
+ * 
+ * Manages the "Job Postings" view inside the Recruiter Dashboard.
+ * 
+ * Features:
+ * 1. CRUD operations for Jobs (Admins only).
+ * 2. Toggling Job visibility (Active/Hidden).
+ * 3. Generating personalized tracking links (URL?ref=userId) for Recruiters.
+ * 
+ * Security: UI elements like the "Create Job", "Edit", and "Delete" buttons 
+ * are conditionally rendered based on the `userRole` prop ('admin' vs 'recruiter').
+ * 
+ * @param {string} domain - The company's unique slug (used for routing to the public job board).
+ * @param {Array} initialJobs - The pre-fetched list of jobs.
+ * @param {string} userId - The authenticated user's ID (used for the ?ref= tracking parameter).
+ * @param {string} userRole - 'admin' or 'recruiter'.
+ */
 export default function JobsClient({ domain, initialJobs, userId, userRole }) {
   const router = useRouter();
+  
+  // ------------------------------------------------------------------------
+  // STATE MANAGEMENT
+  // ------------------------------------------------------------------------
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [editingJobId, setEditingJobId] = useState(null);
-  const [mounted, setMounted] = useState(false);
+  const [editingJobId, setEditingJobId] = useState(null); // Null = Create Mode, UUID = Edit Mode
+  const [mounted, setMounted] = useState(false); // Prevents Hydration Mismatch for Portals
 
+  // Ensure React Portal doesn't render on the server
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
   
+  // Job Form State
   const [form, setForm] = useState({
     title: '',
     company: '',
@@ -26,14 +50,20 @@ export default function JobsClient({ domain, initialJobs, userId, userRole }) {
     description: '',
   });
 
+  // ------------------------------------------------------------------------
+  // MODAL HANDLERS
+  // ------------------------------------------------------------------------
+  
   const openCreateModal = () => {
     setEditingJobId(null);
+    // Reset form for clean creation
     setForm({ title: '', company: '', budget: '', experience: '', department: '', location: '', employment_type: 'Full-time', description: '' });
     setIsModalOpen(true);
   };
 
   const openEditModal = (job) => {
     setEditingJobId(job.id);
+    // Pre-fill form with existing data
     setForm({
       title: job.title || '',
       company: job.company || '',
@@ -47,6 +77,14 @@ export default function JobsClient({ domain, initialJobs, userId, userRole }) {
     setIsModalOpen(true);
   };
 
+  // ------------------------------------------------------------------------
+  // API INTEGRATION (CRUD)
+  // ------------------------------------------------------------------------
+  
+  /**
+   * Submits the Job Form. 
+   * Dynamically switches between POST (Create) and PATCH (Update) based on `editingJobId`.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -61,7 +99,7 @@ export default function JobsClient({ domain, initialJobs, userId, userRole }) {
         });
         if (res.ok) {
           setIsModalOpen(false);
-          router.refresh();
+          router.refresh(); // Triggers Next.js Server Component to refetch data
         } else alert('Failed to update job');
       } else {
         // Create Mode
@@ -72,7 +110,7 @@ export default function JobsClient({ domain, initialJobs, userId, userRole }) {
         });
         if (res.ok) {
           setIsModalOpen(false);
-          router.refresh();
+          router.refresh(); // Triggers Next.js Server Component to refetch data
         } else {
           const errData = await res.json();
           alert(`Failed: ${errData.details || errData.error || 'Unknown error'}`);
@@ -85,6 +123,9 @@ export default function JobsClient({ domain, initialJobs, userId, userRole }) {
     }
   };
 
+  /**
+   * Toggles whether a job is visible on the public job board (`is_active`).
+   */
   const handleToggleStatus = async (job) => {
     try {
       const res = await fetch('/api/jobs/manage', {
@@ -99,6 +140,10 @@ export default function JobsClient({ domain, initialJobs, userId, userRole }) {
     }
   };
 
+  /**
+   * Hard deletes a job posting. 
+   * Note: Supabase Foreign Key constraints might prevent deletion if candidates are attached to it.
+   */
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this job posting? This action cannot be undone.')) return;
     
@@ -155,6 +200,7 @@ export default function JobsClient({ domain, initialJobs, userId, userRole }) {
             </div>
             
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              {/* RBAC: Only Admins can edit/delete jobs */}
               {userRole === 'admin' && (
                 <>
                   <button onClick={() => handleToggleStatus(job)} className="btn-secondary btn-sm" title={job.is_active ? 'Hide Job' : 'Make Active'}>
@@ -169,6 +215,12 @@ export default function JobsClient({ domain, initialJobs, userId, userRole }) {
                 </>
               )}
               <div style={{ width: '1px', height: '24px', background: 'var(--border-med)', margin: '0 0.5rem' }}></div>
+              
+              {/* 
+                ATTRIBUTION LINK GENERATOR 
+                This is how the system tracks which recruiter sourced the candidate.
+                It appends `?ref=userId` to the public job board URL.
+              */}
               <button 
                 onClick={() => {
                   const url = `${window.location.origin}/boards/${domain}/${job.slug}?ref=${userId}`;
@@ -180,6 +232,7 @@ export default function JobsClient({ domain, initialJobs, userId, userRole }) {
               >
                 🔗 Copy Link
               </button>
+              
               <Link href={`/boards/${domain}/${job.slug}?ref=${userId}`} target="_blank" className="btn-primary btn-sm" style={{ textDecoration: 'none' }}>
                 View ↗
               </Link>

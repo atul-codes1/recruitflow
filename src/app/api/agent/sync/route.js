@@ -1,11 +1,20 @@
 /**
+ * POST /api/agent/sync
+ * 
  * ============================================================================
  * DESKTOP AGENT INGESTION LAYER
  * ============================================================================
  * 
- * Endpoint for the Desktop Sync Agent to mass-upload legacy and local resumes.
- * Resumes uploaded here are added to the "General Pool" (job_id = null)
- * instead of a specific job.
+ * This endpoint is consumed exclusively by the Electron Desktop Sync Agent.
+ * It allows recruiters to mass-upload legacy resumes from their local hard drives.
+ * 
+ * Differences from standard `/api/apply`:
+ * - Uses token-based authentication (Bearer token mapped to the recruiter's ID).
+ * - Resumes are uploaded to the "General Pool" (`job_id = null`) instead of a specific job.
+ * - Deduplication is scoped to the recruiter's pool to prevent accidental double-uploads.
+ * 
+ * @param {Request} request - The incoming HTTP request containing the multipart/form-data.
+ * @returns {NextResponse} JSON response containing the success status.
  */
 
 import { NextResponse } from 'next/server';
@@ -26,7 +35,11 @@ export async function POST(request) {
 
     const supabaseAdmin = createAdminClient();
 
-    // 1. Authenticate the Recruiter Token & Fetch BYOS Config
+    // ------------------------------------------------------------------------
+    // 1. AUTHENTICATION & CONFIGURATION FETCH
+    // ------------------------------------------------------------------------
+    // Authenticate the Desktop Agent using the Bearer token (which is the recruiter's UUID).
+    // We also fetch the company's storage configuration to route the file to their specific cloud.
     const { data: profile, error: authError } = await supabaseAdmin
       .from('profiles')
       .select(`
@@ -56,9 +69,10 @@ export async function POST(request) {
     const randomId = Math.random().toString(36).substring(2, 9);
     const fileName = `resume-agent-${randomId}-${Date.now()}.${ext}`;
 
-    // ==========================================
-    // GLOBAL DEDUPLICATION ENGINE
-    // ==========================================
+    // ------------------------------------------------------------------------
+    // 2. GLOBAL DEDUPLICATION ENGINE
+    // ------------------------------------------------------------------------
+    // Generate a unique fingerprint for the file using SHA-256. 
     const fileHash = crypto.createHash('sha256').update(buffer).digest('hex');
     
     const { data: duplicateApps } = await supabaseAdmin
@@ -73,15 +87,18 @@ export async function POST(request) {
       
       const existingApp = duplicateApps[0];
       
-      // Edge Case: The Spammer / Accidental Double Drop
-      // If they already have this resume in the general pool under their name, block it.
+      // Edge Case 1: The Accidental Double Drop
+      // If the recruiter accidentally selects the same folder twice, we block the duplicate upload 
+      // entirely to prevent cluttering their General Pool.
       const isSpam = duplicateApps.some(app => app.job_id === null && app.recruiter_id === profile.id);
       if (isSpam) {
         console.warn(`[Agent Sync] Duplicate blocked: Candidate already in general pool for this recruiter.`);
         return NextResponse.json({ error: 'Resume already exists in your General Pool.' }, { status: 400 });
       }
 
-      // Clone if previously successful
+      // Edge Case 2: Cloning existing data
+      // If the resume exists elsewhere in the company workspace and was successfully parsed,
+      // we clone the data directly into the recruiter's general pool without calling the Gemini API.
       if (existingApp.ai_status === 'completed') {
         console.log(`[Agent Sync] Cloning existing AI parsed data for recruiter ${profile.id}...`);
         
@@ -105,7 +122,7 @@ export async function POST(request) {
             raw_text: existingApp.raw_text,
             embedding: existingApp.embedding,
             status: 'unreviewed', 
-            ai_status: 'completed', 
+            ai_status: 'completed', // Instantly completed!
             file_hash: fileHash
           })
           .select()
@@ -116,39 +133,46 @@ export async function POST(request) {
           return NextResponse.json({ error: 'Failed to submit application.' }, { status: 500 });
         }
         
+        // Return instantly. Crucial for mass-sync speeds.
         return NextResponse.json({ success: true, applicationId: clonedApp.id, is_duplicate: true });
       } else {
         console.log(`[Agent Sync] Existing duplicate is not 'completed'. Forcing fresh processing.`);
       }
     }
 
-    // STEP 1: Upload dynamically via the Storage Factory (BYOS)
-    console.log(`[Desktop Agent] Routing ${fileName} to ${company.storage_provider || 'unconfigured'}...`);
+    // ------------------------------------------------------------------------
+    // 3. CLOUD STORAGE UPLOAD
+    // ------------------------------------------------------------------------
+    // Upload dynamically via the Storage Factory (BYOS)
+    console.log(`[Desktop Agent] Routing ${fileName} to ${profile.companies?.storage_provider || 'unconfigured'}...`);
     const uploadResult = await StorageFactory.upload(
-      company.storage_provider,
-      company.storage_config || {},
+      profile.companies?.storage_provider,
+      profile.companies?.storage_config || {},
       buffer,
       fileName,
-      'global-pool'
+      'global-pool' // Folder naming convention for general pool resumes
     );
     
     if (!uploadResult || !uploadResult.success) {
        return NextResponse.json({ error: 'Failed to safely upload resume. Please try again.' }, { status: 500 });
     }
 
-    // [ZERO-TOUCH AUTOMATION] If the storage adapter automatically created a new folder, save the ID!
-    if (uploadResult.new_folder_id && company.storage_provider) {
+    // [ZERO-TOUCH AUTOMATION] If the storage adapter automatically created a new folder, save the ID
+    if (uploadResult.new_folder_id && profile.companies?.storage_provider) {
       const updatedConfig = { 
-        ...(company.storage_config || {}), 
+        ...(profile.companies.storage_config || {}), 
         folderId: uploadResult.new_folder_id 
       };
       console.log(`[Desktop Agent] Saving auto-created folder ID (${uploadResult.new_folder_id}) to company config...`);
       await supabaseAdmin.from('companies')
         .update({ storage_config: updatedConfig })
-        .eq('id', company.id);
+        .eq('id', profile.company_id);
     }
 
-    // STEP 2: Fast Database Insert (Mark as Queued)
+    // ------------------------------------------------------------------------
+    // 4. DATABASE INSERTION
+    // ------------------------------------------------------------------------
+    // Create a placeholder record in the UI while AI parses in the background
     const { data: application, error: appError } = await supabaseAdmin
       .from('applications')
       .insert({
@@ -178,7 +202,11 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Failed to insert into database.' }, { status: 500 });
     }
 
-    // STEP 3: Enterprise Background Processing (Hybrid)
+    // ------------------------------------------------------------------------
+    // 5. ASYNCHRONOUS AI PROCESSING DISPATCH
+    // ------------------------------------------------------------------------
+    // Because the Desktop Agent iterates over thousands of files, we MUST return 200 OK instantly.
+    // We offload the Gemini API calls to the background worker via Upstash.
     if (process.env.NODE_ENV !== 'production' || !process.env.QSTASH_TOKEN) {
       console.log('[Agent Sync] Running locally using after()');
       const { after } = require('next/server');

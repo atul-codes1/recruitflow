@@ -1,5 +1,11 @@
 import Link from 'next/link';
 
+/**
+ * Public Footer Component
+ * 
+ * Used exclusively on the public-facing pages (job boards, marketing site)
+ * to provide global navigation and legal links.
+ */
 export default function PublicFooter() {
   const linkStyle = {
     color: 'var(--color-surface-400)',

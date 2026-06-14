@@ -3,6 +3,15 @@ import JobsClient from './JobsClient';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Job Postings Page (Server Component)
+ * 
+ * Route: `/[domain]/dashboard/jobs`
+ * 
+ * Fetches all active job postings for the current workspace. 
+ * Passes down the `userRole` (Admin vs Recruiter) to the client component 
+ * to determine if the user is allowed to edit/delete the jobs.
+ */
 export default async function JobsPage({ params }) {
   const { domain } = await params;
   const supabase = await createClient();

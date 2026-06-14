@@ -1,3 +1,9 @@
+/**
+ * Public Job Board Loading Skeleton
+ * 
+ * Uses Next.js App Router conventions to display an instant skeleton state
+ * while `page.js` is fetching data on the server.
+ */
 export default function JobBoardLoading() {
   return (
     <div className="min-h-screen bg-[var(--bg-base)] animate-in">

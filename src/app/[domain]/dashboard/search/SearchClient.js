@@ -2,23 +2,42 @@
 
 import { useState } from 'react';
 
+/**
+ * SearchClient Component
+ * 
+ * The client-side UI for the AI-powered Natural Language Resume Search.
+ * This component takes the user's natural language query, passes it to the
+ * backend AI engine, and renders the matched candidates with their AI-generated
+ * reasoning scores.
+ */
 export default function SearchClient() {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [meta, setMeta] = useState(null);
+  // ------------------------------------------------------------------------
+  // STATE MANAGEMENT
+  // ------------------------------------------------------------------------
+  const [query, setQuery] = useState(''); // The natural language search text
+  const [results, setResults] = useState(null); // Array of candidate results returned by the AI
+  const [loading, setLoading] = useState(false); // UI loading state
+  const [error, setError] = useState(''); // Error messages
+  const [meta, setMeta] = useState(null); // Metadata (total candidates scanned, match count, etc.)
 
+  // ------------------------------------------------------------------------
+  // SEARCH HANDLER
+  // ------------------------------------------------------------------------
+  /**
+   * Executes the search by sending the query to the `/api/search` route.
+   */
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!query.trim() || query.trim().length < 3) return;
+    if (!query.trim() || query.trim().length < 3) return; // Prevent empty/useless searches
 
+    // Reset UI state before starting
     setLoading(true);
     setError('');
     setResults(null);
     setMeta(null);
 
     try {
+      // Calls the robust Vector + LLM search API
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -32,10 +51,11 @@ export default function SearchClient() {
         return;
       }
 
+      // Populate UI with the parsed AI rankings
       setResults(data.results || []);
       setMeta({
-        total_candidates: data.total_candidates,
-        matches_found: data.matches_found,
+        total_candidates: data.total_candidates, // Total resumes in DB
+        matches_found: data.matches_found,       // How many passed the AI threshold
         query: data.query,
       });
     } catch (err) {
@@ -260,7 +280,7 @@ export default function SearchClient() {
                     {r.score}% Match
                   </div>
 
-                  {/* Top Row: Name + Title */}
+                  {/* Top Row: Candidate Name & Current Title */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
@@ -278,6 +298,7 @@ export default function SearchClient() {
                       )}
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                      {/* View Resume Button (Opens directly in Google Drive/OneDrive viewer) */}
                       {r.drive_web_url && (
                         <a href={r.drive_web_url} target="_blank" rel="noopener noreferrer" className="btn-primary btn-sm" style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>
                           📄 View Resume
@@ -286,7 +307,8 @@ export default function SearchClient() {
                     </div>
                   </div>
 
-                  {/* AI Reason */}
+                  {/* AI Reasoning Container */}
+                  {/* The LLM explains exactly why it gave this candidate the score it did. */}
                   <div style={{
                     padding: '0.75rem 1rem',
                     background: 'rgba(99, 102, 241, 0.06)',

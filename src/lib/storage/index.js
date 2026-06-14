@@ -1,6 +1,16 @@
 /**
- * Storage Adapter Factory
- * Dynamically routes uploads to the company's preferred cloud provider.
+ * ============================================================================
+ * CLOUD STORAGE FACTORY (lib/storage/index.js)
+ * ============================================================================
+ * 
+ * This is the central router for the "Bring Your Own Storage" (BYOS) architecture.
+ * Instead of storing candidate resumes in an expensive AWS S3 bucket that we pay for,
+ * we upload the PDFs directly into the Recruiter's own Google Drive, OneDrive, or Zoho account.
+ * 
+ * This ensures:
+ * 1. Zero storage costs for us.
+ * 2. Complete data privacy for the B2B clients (they own the files).
+ * 3. Infinite scalability.
  */
 
 import { uploadToOneDrive } from './onedrive';

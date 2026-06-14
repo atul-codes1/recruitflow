@@ -1,3 +1,9 @@
+/**
+ * Candidates Pipeline Loading Skeleton
+ * 
+ * Renders an instant skeleton table mimicking the `CandidatesClient` while 
+ * the server fetches applications and jobs from Supabase.
+ */
 export default function CandidatesLoading() {
   return (
     <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>

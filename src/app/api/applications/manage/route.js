@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+/**
+ * Application Status Management API
+ * 
+ * Route: `/api/applications/manage`
+ * 
+ * Handles editing (PATCH) the status of an application.
+ * Relies on RLS to ensure a user can only edit applications for their company.
+ */
 export async function PATCH(request) {
   try {
     const data = await request.json();

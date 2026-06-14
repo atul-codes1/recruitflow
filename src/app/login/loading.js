@@ -1,3 +1,8 @@
+/**
+ * Authentication Page Loading Skeleton
+ * 
+ * Mirrors the exact layout of the Login/Register card to prevent layout shifts.
+ */
 export default function AuthLoading() {
   return (
     <div className="animate-fade" style={{ 

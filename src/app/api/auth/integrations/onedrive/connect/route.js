@@ -1,5 +1,13 @@
 import { NextResponse } from 'next/server';
 
+/**
+ * OneDrive OAuth 2.0 Initialization (Connect)
+ * 
+ * Route: `/api/auth/integrations/onedrive/connect`
+ * 
+ * Initiates the BYOS (Bring Your Own Storage) OAuth flow for Microsoft OneDrive.
+ * Generates an authorization URL requesting `offline_access` and `Files.ReadWrite.All`.
+ */
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const companyId = searchParams.get('company_id');

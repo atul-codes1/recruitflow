@@ -4,14 +4,30 @@ import HomeJobsClient from '@/components/HomeJobsClient';
 import PublicHeader from '@/components/PublicHeader';
 import PublicFooter from '@/components/PublicFooter';
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic'; // Ensures this page renders server-side dynamically
 
+/**
+ * Public Job Board Home Page
+ * 
+ * Route: `/boards/[domain]`
+ * 
+ * This is the public-facing landing page for a specific company's job board.
+ * It uses the `[domain]` URL parameter to dynamically fetch the correct company
+ * and its active jobs. This is the core of our multi-tenant public architecture.
+ * 
+ * Example: recruitflow.com/boards/acme -> Shows Acme Corp's jobs.
+ */
 export default async function CompanyBoardPage({ params }) {
   const { domain } = await params;
   
+  // We use the Admin Client here because this is a public page (no user session).
+  // Standard Supabase client would enforce RLS and block the read if not authenticated.
   const supabaseAdmin = createAdminClient();
 
-  // Fetch the company to ensure it exists
+  // ------------------------------------------------------------------------
+  // 1. TENANT RESOLUTION
+  // ------------------------------------------------------------------------
+  // Look up the company ID using the domain string from the URL
   const { data: company } = await supabaseAdmin
     .from('companies')
     .select('id, name')
@@ -22,7 +38,10 @@ export default async function CompanyBoardPage({ params }) {
     return <div style={{ padding: '4rem', textAlign: 'center', color: 'white' }}>Company not found.</div>;
   }
 
-  // Fetch only this company's active jobs
+  // ------------------------------------------------------------------------
+  // 2. DATA FETCHING
+  // ------------------------------------------------------------------------
+  // Fetch only this specific company's active jobs
   const { data: jobs } = await supabaseAdmin
     .from('jobs')
     .select('*')

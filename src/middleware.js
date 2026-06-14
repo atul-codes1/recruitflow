@@ -1,11 +1,28 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
+/**
+ * Next.js Edge Middleware
+ * 
+ * This file runs on Vercel's Edge Network before a request ever hits a Server Component
+ * or API route. It serves two primary functions:
+ * 1. Supabase Session Management (refreshing expired tokens).
+ * 2. Multi-Tenant Route Protection (enforcing authentication and redirecting wildcards).
+ * 
+ * Note: Since this runs on the Edge, we cannot use `pg` or `@supabase/supabase-js` to
+ * query the database directly. We can only read cookies and JWTs.
+ */
 export async function middleware(request) {
   let supabaseResponse = NextResponse.next({
     request,
   });
 
+  // ------------------------------------------------------------------------
+  // 1. SUPABASE SESSION REFRESH (Crucial for SSR)
+  // ------------------------------------------------------------------------
+  // We recreate the client here solely to let Supabase read the cookie and 
+  // determine if the JWT needs to be refreshed. If it does, Supabase will
+  // overwrite the cookie in `supabaseResponse`.
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -36,30 +53,29 @@ export async function middleware(request) {
     }
   );
 
+  // This call actually triggers the token refresh logic.
   const { data: { user } } = await supabase.auth.getUser();
 
+  // ------------------------------------------------------------------------
+  // 2. ROUTE PROTECTION & MULTI-TENANCY INTERCEPTS
+  // ------------------------------------------------------------------------
   const url = request.nextUrl.clone();
 
-  // If trying to access the legacy /dashboard route without a domain, intercept it.
-  // Actually, we don't have a /dashboard route anymore.
+  // If a user types `recruitflow.com/dashboard` (without their company domain),
+  // they will hit a 404 because our folders are structured as `/[domain]/dashboard`.
+  // We intercept this and send them to the `route-tenant` API which will look up
+  // their company domain in the DB and redirect them appropriately.
   if (url.pathname === '/dashboard' || url.pathname.startsWith('/dashboard/')) {
     if (!user) {
       url.pathname = '/login';
       return NextResponse.redirect(url);
     }
-    // We can't query the profile here easily (middleware runs on Edge).
-    // The `layout.js` inside `/[domain]/dashboard` handles the strict domain isolation.
-    // So if they just hit `/dashboard`, we should ideally redirect to their tenant.
-    // But since we can't easily fetch their domain here, we can redirect them to the auth callback 
-    // to auto-route them, OR let a small catch-all page route them.
-    // Actually, `layout.js` does the routing! But wait, `/[domain]/dashboard` requires the domain in the URL!
-    // So `/dashboard` will 404 because it doesn't match `/[domain]/dashboard`.
-    // Let's redirect `/dashboard` to an API route or callback that can fetch their domain and redirect them.
     url.pathname = '/api/auth/route-tenant';
     return NextResponse.redirect(url);
   }
 
-  // Protect /[domain]/dashboard routes from unauthenticated users
+  // Protect all `/[domain]/dashboard` routes from unauthenticated users.
+  // The Regex matches any string that looks like `/acme/dashboard...`
   if (url.pathname.match(/^\/[^\/]+\/dashboard/)) {
     if (!user) {
       url.pathname = '/login';

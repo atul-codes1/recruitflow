@@ -2,6 +2,15 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Google Drive Integration Documentation
+ * 
+ * Route: `/[domain]/dashboard/settings/docs`
+ * 
+ * Static help page providing step-by-step instructions for generating
+ * Google Cloud Platform (GCP) Service Account credentials. 
+ * Kept mostly for legacy reasons as BYOS OAuth is now preferred.
+ */
 export default async function DocsPage({ params }) {
   const { domain } = await params;
 

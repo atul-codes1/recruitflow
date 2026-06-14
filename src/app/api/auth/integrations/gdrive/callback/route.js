@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
+/**
+ * Google Drive OAuth 2.0 Callback
+ * 
+ * Route: `/api/auth/integrations/gdrive/callback`
+ * 
+ * Handles the redirect from Google's Consent Screen. 
+ * Exchanges the temporary `code` for a long-lived `refresh_token`, 
+ * and securely saves it to the tenant's `storage_config` in Supabase 
+ * so the backend can impersonate the admin's drive to store resumes.
+ */
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');

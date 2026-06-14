@@ -3,6 +3,20 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+/**
+ * Authentication Hub (Client Component)
+ * 
+ * Route: `/login`
+ * 
+ * This is a multi-mode auth page handling Login, Registration, Magic Links, 
+ * and Password Resets.
+ * 
+ * CRITICAL ARCHITECTURE NOTE:
+ * We do NOT use the `@supabase/supabase-js` browser client here. 
+ * Instead, we post credentials to our Next.js API Routes (e.g. `/api/auth/login`).
+ * Why? Because Next.js App Router requires auth state to be available on the 
+ * server during initial render via secure HTTP-only cookies.
+ */
 export default function AuthPage() {
   const [mode, setMode] = useState('login'); // 'login', 'register', 'verify', 'reset'
   const [email, setEmail] = useState('');
@@ -20,10 +34,11 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      // In a real implementation, you would hit your Supabase Client here.
-      // But since we want to keep server-side logic consistent, we'll route to an API if needed, 
-      // or we can just use the supabase browser client directly if we built it.
-      // Wait, we need to create an API route for simple password login to set the SSR cookie!
+      // ------------------------------------------------------------------------
+      // SSR AUTHENTICATION FLOW
+      // ------------------------------------------------------------------------
+      // We send credentials to our backend API route which uses `@supabase/ssr`
+      // to securely set HTTP-only session cookies before redirecting.
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -31,6 +46,7 @@ export default function AuthPage() {
       });
 
       if (res.ok) {
+        // Hard redirect to clear bfcache and trigger the tenant router
         window.location.href = '/api/auth/route-tenant';
       } else {
         const data = await res.json();

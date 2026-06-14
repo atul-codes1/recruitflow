@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
+/**
+ * OneDrive OAuth 2.0 Callback
+ * 
+ * Route: `/api/auth/integrations/onedrive/callback`
+ * 
+ * Handles the redirect from Microsoft Azure AD. 
+ * Exchanges the `code` for a `refresh_token` and saves it to Supabase 
+ * for the tenant's Bring Your Own Storage (BYOS) configuration.
+ */
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');

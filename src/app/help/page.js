@@ -1,6 +1,13 @@
 import PublicHeader from '@/components/PublicHeader';
 import PublicFooter from '@/components/PublicFooter';
 
+/**
+ * Help Center Page (Server Component)
+ * 
+ * Route: `/help`
+ * 
+ * Static FAQ page providing basic platform guidance.
+ */
 export default function HelpPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-surface-950)' }}>

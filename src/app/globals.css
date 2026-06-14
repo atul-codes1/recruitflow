@@ -1,7 +1,13 @@
 @import "tailwindcss";
 
 /* ========================================
-   RecruitFlow Design System
+   RecruitFlow Design System (globals.css)
+   
+   Architecture:
+   - Uses TailwindCSS v4 `@theme` directive to define raw CSS variables.
+   - We use custom CSS variables instead of inline Tailwind utility classes 
+     for most heavy design components (Cards, Buttons, Modals) to keep JSX clean.
+   - Supports a curated Light/Dark mode via the `[data-theme="light"]` selector.
    ======================================== */
 
 @theme {

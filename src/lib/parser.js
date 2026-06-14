@@ -1,16 +1,33 @@
 /**
- * Resume Parser — Extracts text from PDF/DOCX and uses AI to parse details.
+ * ============================================================================
+ * THE RESUME PARSING ENGINE (lib/parser.js)
+ * ============================================================================
  * 
- * Strategy for completely FREE parsing:
- * 1. Extract text from the resume file (pdf-parse for PDFs, mammoth for DOCX)
- * 2. Use regex to extract email & phone (100% free, very accurate)
- * 3. Use Google Gemini Flash free API for intelligent extraction (name, skills, etc.)
- * 4. Falls back to regex-only if Gemini is not configured
+ * This library is responsible for extracting structured JSON data from raw resume files.
+ * It uses a highly resilient, multi-tiered fallback architecture to ensure we NEVER fail
+ * to parse a resume, while prioritizing free/cheap LLM APIs.
+ * 
+ * Architecture Strategy:
+ * 1. Extract text locally using `pdf-parse` or `mammoth` (DOCX).
+ * 2. If text is empty (scanned image), fallback to Google Gemini Flash Vision for OCR.
+ * 3. Pass text to Groq API (Llama 3) for ultra-fast, structured JSON extraction.
+ * 4. If Groq hits a rate limit, instantly multiplex to the next Llama model.
+ * 5. If all Groq models fail, fallback to Gemini 1.5 Flash.
+ * 6. If Gemini fails, fallback to a local Regex engine (extracting at least Email & Phone).
+ * 7. Force the resulting JSON through Zod validation to guarantee schema safety before inserting into DB.
  */
 
 import fetch from 'cross-fetch';
 import { z } from 'zod';
 
+/**
+ * Zod Schema Definition
+ * 
+ * This acts as the absolute source of truth for the parsed JSON structure.
+ * Every LLM response is passed through this schema. If the LLM hallucinates a field,
+ * Zod strips it out. If the LLM forgets a field, Zod injects the default value (e.g. `null` or `[]`).
+ * This guarantees our database never receives corrupted shapes.
+ */
 const ResumeSchema = z.object({
   candidate: z.object({
     name: z.string().nullable().default(null),
@@ -70,8 +87,18 @@ const ResumeSchema = z.object({
   raw_overflow_bin: z.string().nullable().default(null)
 });
 
+// Utility for exponential backoff delays
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+/**
+ * Custom fetch wrapper that implements exponential backoff for Google API 429 Rate Limits.
+ * Used exclusively for Gemini OCR and Gemini Text Fallbacks.
+ * 
+ * @param {string} url - API Endpoint
+ * @param {object} options - Fetch options (headers, body)
+ * @param {number} maxRetries - Maximum retry attempts before giving up
+ * @returns {Promise<Response>} 
+ */
 async function fetchWithRetry(url, options, maxRetries = 3) {
   for (let i = 0; i < maxRetries; i++) {
     const response = await fetch(url, options);
@@ -79,7 +106,7 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
       const waitTime = (i + 1) * 30000; // Wait 30s, 60s, 90s
       console.warn(`[Parser] Gemini Rate Limit (429) hit. Waiting in queue for ${waitTime / 1000}s... (Attempt ${i + 1}/${maxRetries})`);
       await delay(waitTime);
-      continue;
+      continue; // Loop continues to the next retry attempt
     }
     return response;
   }
@@ -87,7 +114,14 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
 }
 
 /**
- * Extract structured data from resume text using regex (always free).
+ * BASE LAYER FALLBACK: Regex Extraction
+ * 
+ * If all AI APIs are down or unconfigured, this ensures we at least extract the
+ * candidate's Name, Email, and Phone number using standard local regex.
+ * It returns the exact same JSON schema structure as the AI.
+ * 
+ * @param {string} text - The raw extracted text from the document.
+ * @returns {object} A ResumeSchema-compliant JSON object.
  */
 export function extractWithRegex(text) {
   // Email extraction
@@ -153,6 +187,10 @@ export function extractWithRegex(text) {
 }
 
 let cachedGeminiModels = null;
+/**
+ * Dynamically queries the Google API to find the best available active models.
+ * This prevents the app from breaking if Google deprecates an older Flash model.
+ */
 async function getAvailableGeminiModels(apiKey) {
   if (cachedGeminiModels) return cachedGeminiModels;
   
@@ -166,7 +204,7 @@ async function getAvailableGeminiModels(apiKey) {
       .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
       .map(m => m.name.replace('models/', ''));
       
-    // Sort so 'flash' comes first, then 'pro'
+    // Sort so 'flash' comes first (cheaper/faster), then 'pro'
     const sorted = models.sort((a, b) => {
       const aScore = a.includes('flash') ? 2 : (a.includes('pro') ? 1 : 0);
       const bScore = b.includes('flash') ? 2 : (b.includes('pro') ? 1 : 0);
@@ -183,8 +221,15 @@ async function getAvailableGeminiModels(apiKey) {
 }
 
 /**
+ * OPTICAL CHARACTER RECOGNITION (OCR) ENGINE
+ * 
  * Perform pure OCR on a scanned PDF or image using Gemini Multimodal.
  * We only use this as a fallback for the 5% of documents that pdf-parse cannot read.
+ * We send the raw base64 buffer directly into the vision model.
+ * 
+ * @param {Buffer} buffer - The raw binary file data.
+ * @param {string} mimeType - e.g., 'application/pdf'
+ * @returns {Promise<string>} The extracted raw text.
  */
 export async function performOcrWithGemini(buffer, mimeType) {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -244,8 +289,18 @@ export async function performOcrWithGemini(buffer, mimeType) {
 }
 
 /**
- * Parse resume pure text using Google Gemini Flash API (free tier).
- * We pass ONLY text (not the heavy PDF buffer) to save quota and increase speed.
+ * AI STRUCTURED DATA EXTRACTOR
+ * 
+ * This function takes unstructured text and uses prompt engineering to force an LLM 
+ * to output a perfectly structured JSON object matching our Zod schema.
+ * 
+ * It employs a Model Multiplexing Strategy:
+ * 1. Tries Groq (Llama 70B) first because it is incredibly fast (800 tokens/sec) and free.
+ * 2. If Groq hits a rate limit, it instantly swaps to Groq Llama 8B.
+ * 3. If all Groq models fail, it falls back to Gemini 1.5 Flash.
+ * 
+ * @param {string} text - The raw unstructured text from the resume.
+ * @returns {Promise<object|null>} The parsed JSON data, verified by Zod.
  */
 export async function parseTextWithAi(text) {
   const groqKey = process.env.GROQ_API_KEY;
@@ -337,8 +392,12 @@ Resume Text:
 ${text.substring(0, 15000)} // Ensure we cap at a reasonable size
 `;
 
-  // 1. GROQ UNIFIED MULTIPLEXER
+  // ------------------------------------------------------------------------
+  // TIER 1: GROQ UNIFIED MULTIPLEXER (Lightning Fast)
+  // ------------------------------------------------------------------------
   if (groqKey) {
+    // We array these models in order of capability. 
+    // If the 70B model hits a rate limit, the loop instantly tries the 8B model.
     const groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'];
     
     for (const model of groqModels) {
@@ -388,7 +447,10 @@ ${text.substring(0, 15000)} // Ensure we cap at a reasonable size
     console.warn(`[Parser] All Groq models exhausted. Falling back to Gemini...`);
   }
 
-  // 2. GEMINI FALLBACK
+  // ------------------------------------------------------------------------
+  // TIER 2: GEMINI FALLBACK
+  // ------------------------------------------------------------------------
+  // If Groq completely fails (e.g. servers down), we fall back to Google Gemini.
   if (geminiKey) {
     try {
       const geminiModels = await getAvailableGeminiModels(geminiKey);

@@ -1,6 +1,15 @@
 import PublicHeader from '@/components/PublicHeader';
 import PublicFooter from '@/components/PublicFooter';
 
+/**
+ * Cookie Settings Page (Server Component)
+ * 
+ * Route: `/cookies`
+ * 
+ * Static legal page explaining cookie usage. 
+ * Note: The toggle functionality here is currently a mock UI and does not 
+ * genuinely block/allow analytics cookies yet.
+ */
 export default function CookiesPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-surface-950)' }}>

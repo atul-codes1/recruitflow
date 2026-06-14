@@ -2,6 +2,12 @@
 
 import { useState } from 'react';
 
+/**
+ * Copy Button (Client Component)
+ * 
+ * Reusable utility to copy text to the user's clipboard using the standard `navigator.clipboard` API.
+ * Includes a temporary "Copied!" success state.
+ */
 export default function CopyButton({ textToCopy }) {
   const [copied, setCopied] = useState(false);
 

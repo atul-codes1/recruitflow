@@ -4,6 +4,14 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
+/**
+ * Job Application Success Page
+ * 
+ * Route: `/boards/[domain]/success`
+ * 
+ * Redirected here after a successful form submission on `/[slug]/page.js`.
+ * Reads the `?job=` parameter to display a personalized confirmation message.
+ */
 function SuccessContent() {
   const params = useParams();
   const searchParams = useSearchParams();

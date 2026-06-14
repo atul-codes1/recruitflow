@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
+/**
+ * Zoho WorkDrive OAuth 2.0 Callback
+ * 
+ * Route: `/api/auth/integrations/zoho/callback`
+ * 
+ * Handles the redirect from Zoho. Exchanges the `code` for a `refresh_token` 
+ * and saves it to Supabase for the tenant's BYOS configuration.
+ */
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');

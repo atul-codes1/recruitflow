@@ -1,5 +1,12 @@
 /**
- * Zoho WorkDrive Native Integration (OAuth 2.0 / WorkDrive API)
+ * Zoho WorkDrive Native Integration
+ * 
+ * Handles uploading parsed resumes to a company's Zoho WorkDrive account.
+ * 
+ * Requires:
+ * - A registered Zoho API Console Client.
+ * - `ZOHO_CLIENT_ID` and `ZOHO_CLIENT_SECRET` in `.env.local`.
+ * - The user must provide a `folderId` during configuration (Zoho requires exact IDs, not paths).
  */
 
 export async function uploadToZoho(fileBuffer, fileName, jobSlug, config) {

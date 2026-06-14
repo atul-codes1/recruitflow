@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server';
 
+/**
+ * Zoho WorkDrive OAuth 2.0 Initialization (Connect)
+ * 
+ * Route: `/api/auth/integrations/zoho/connect`
+ * 
+ * Initiates the BYOS (Bring Your Own Storage) OAuth flow for Zoho WorkDrive.
+ * Requests `WorkDrive.files.ALL` and `WorkDrive.workspace.ALL` scopes.
+ * Note: Assumes Zoho US data center (`.com`).
+ */
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const companyId = searchParams.get('company_id');

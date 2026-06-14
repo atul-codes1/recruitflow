@@ -2,6 +2,15 @@ import PublicHeader from '@/components/PublicHeader';
 import PublicFooter from '@/components/PublicFooter';
 import Link from 'next/link';
 
+/**
+ * Blog Page (Server Component)
+ * 
+ * Route: `/blog`
+ * 
+ * Marketing page listing recent blog posts. 
+ * Currently displays hardcoded mock posts. Could be connected to 
+ * a headless CMS (like Sanity or Contentful) later.
+ */
 export default function BlogPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-surface-950)' }}>
