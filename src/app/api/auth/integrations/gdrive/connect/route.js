@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Google Drive OAuth 2.0 Initialization (Connect)
  * 
