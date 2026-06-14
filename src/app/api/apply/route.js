@@ -298,7 +298,7 @@ export async function POST(request) {
         console.log(`[Apply] Successfully pushed Application ${application.id} to QStash at ${baseUrl}.`);
       } catch (qErr) {
         console.error('[Apply] Failed to push to QStash:', qErr);
-        await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: 'Failed to connect to QStash API.' }).eq('id', application.id);
+        await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: `QStash Error: ${qErr.message}` }).eq('id', application.id);
       }
     }
 
