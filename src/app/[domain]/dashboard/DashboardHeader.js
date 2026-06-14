@@ -140,14 +140,13 @@ export default function DashboardHeader({ domain, profile }) {
                   zIndex: 50,
                 }}>
                   <div style={{
-                    background: 'var(--bg-panel)',
+                    background: 'var(--color-surface-900)',
                     border: '1px solid var(--border-light)',
                     borderRadius: 'var(--radius-md)',
                     boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
                     minWidth: '180px',
                     overflow: 'hidden',
                     animation: 'fadeIn 0.15s ease-out',
-                    backdropFilter: 'blur(16px)',
                   }}>
                     <Link 
                       href={`/${domain}/dashboard/profile`}
