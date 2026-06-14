@@ -46,7 +46,7 @@ async function getSearchModel(apiKey) {
   } catch (e) {
     console.error('[Search] Failed to fetch dynamic models, using fallback.');
   }
-  return 'gemini-1.5-flash-latest'; // Ultimate Fallback
+  return 'gemini-flash-latest'; // Ultimate Fallback
 }
 
 export async function POST(request) {

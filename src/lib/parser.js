@@ -48,22 +48,22 @@ const ResumeSchema = z.object({
     current_seniority_level: z.string().nullable().default(null)
   }).default({}),
   experience: z.array(z.object({
-    company: z.string().default("Unknown"),
-    role: z.string().default("Unknown"),
+    company: z.string().nullable().default(null),
+    role: z.string().nullable().default(null),
     dates: z.object({ start: z.string().default(""), end: z.string().default("") }).default({}),
     location: z.string().nullable().default(null),
-    achievements: z.array(z.object({ text: z.string(), metric: z.string().nullable().default(null), context: z.string().default("") })).default([]),
+    achievements: z.array(z.object({ text: z.string().nullable().default(null), metric: z.string().nullable().default(null), context: z.string().nullable().default(null) })).default([]),
     tech_stack_or_tools: z.array(z.string()).default([]),
     industry_sector: z.string().nullable().default(null)
   })).default([]),
   education: z.array(z.object({
-    institution: z.string().default("Unknown"),
-    degree: z.string().default("Unknown"),
-    field: z.string().default("Unknown"),
+    institution: z.string().nullable().default(null),
+    degree: z.string().nullable().default(null),
+    field: z.string().nullable().default(null),
     year_graduated: z.number().nullable().default(null)
   })).default([]),
   projects: z.array(z.object({
-    project_name: z.string().default("Unknown"),
+    project_name: z.string().nullable().default(null),
     description: z.string().nullable().default(null),
     link: z.string().nullable().default(null),
     technologies_used: z.array(z.string()).default([])
