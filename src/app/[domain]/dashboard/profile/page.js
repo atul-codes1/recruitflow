@@ -108,7 +108,7 @@ export default async function ProfilePage() {
             <input 
               type="text" 
               readOnly 
-              value={company?.id || ''} 
+              value={user.id} 
               style={{ 
                 flex: 1, 
                 background: 'var(--bg-input)', 
@@ -122,7 +122,7 @@ export default async function ProfilePage() {
                 outline: 'none',
               }} 
             />
-            <CopyButton textToCopy={company?.id || ''} />
+            <CopyButton textToCopy={user.id} />
           </div>
         </div>
 
