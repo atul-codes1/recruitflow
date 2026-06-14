@@ -16,6 +16,7 @@
 import { uploadToOneDrive } from './onedrive';
 import { uploadToZoho } from './zoho';
 import { uploadToGoogleDrive } from '../gdrive'; // The legacy GDrive script
+import { uploadToLocal } from './local'; // The local disk fallback
 
 export const StorageFactory = {
   /**
@@ -46,8 +47,9 @@ export const StorageFactory = {
         return await uploadToGoogleDrive(fileBuffer, fileName, jobSlug, config);
         
       default:
-        // Compulsory Integration Enforcement: No fallback allowed
-        throw new Error('No storage integration configured. Please connect Google Drive, OneDrive, or Zoho in your dashboard settings.');
+        // Local Fallback: If no integration is configured, save to local disk
+        console.warn('[StorageFactory] No cloud integration found. Falling back to local disk storage.');
+        return await uploadToLocal(fileBuffer, fileName, jobSlug);
     }
   }
 };

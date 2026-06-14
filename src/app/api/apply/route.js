@@ -235,30 +235,32 @@ export async function POST(request) {
     
     if (process.env.NODE_ENV !== 'production' || !process.env.QSTASH_TOKEN) {
       // DEVELOPMENT FALLBACK:
-      // Upstash cloud cannot reach `localhost`, so we use Next.js experimental `after()` to process in the background.
-      console.log('[Apply] Running in Local Dev (or missing QStash). Using synchronous Next.js after() to process.');
-      const { after } = require('next/server');
-      after(async () => {
-        try {
-          // Trigger the worker API locally
-          const res = await fetch(`http://localhost:${process.env.PORT || 3000}/api/worker/process-resume`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              applicationId: application.id,
-              drive_file_id: uploadResult.drive_file_id || '',
-              local_path: uploadResult.local_path || '',
-              fileName,
-              jobSlug,
-              ext,
-            })
-          });
-          if (!res.ok) throw new Error('Worker returned ' + res.status);
-        } catch (e) {
-          console.error('[Apply] Local after() processing failed:', e);
-          await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: e.message }).eq('id', application.id);
-        }
+      // Upstash cloud cannot reach `localhost`, so we process via a fire-and-forget fetch.
+      // This is safe in local Node.js environments, but would be killed in Vercel (hence QStash for prod).
+      console.log('[Apply] Running in Local Dev (or missing QStash). Using fire-and-forget fetch to process.');
+      
+      const protocol = 'http';
+      const host = request.headers.get('host') || 'localhost:3000';
+      const localUrl = `${protocol}://${host}/api/worker/process-resume`;
+      
+      fetch(localUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId: application.id,
+          drive_file_id: uploadResult.drive_file_id || '',
+          local_path: uploadResult.local_path || '',
+          fileName,
+          jobSlug,
+          ext,
+        })
+      }).then(res => {
+        if (!res.ok) console.error('[Apply] Local worker returned', res.status);
+      }).catch(async (e) => {
+        console.error('[Apply] Local processing failed:', e);
+        await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: e.message }).eq('id', application.id);
       });
+      
     } else {
       // PRODUCTION ENTERPRISE:
       // Push the job to Upstash QStash. QStash will reliably POST the payload to our worker API.
