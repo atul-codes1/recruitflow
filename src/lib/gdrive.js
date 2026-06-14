@@ -23,17 +23,17 @@ import { Readable } from 'stream';
  * Upload a file to Google Drive.
  */
 export async function uploadToGoogleDrive(fileBuffer, fileName, jobSlug, config = {}) {
-  const clientId = process.env.GCP_CLIENT_ID;
-  const clientSecret = process.env.GCP_CLIENT_SECRET;
+  const clientId = process.env.GCP_OAUTH_CLIENT_ID || process.env.GCP_CLIENT_ID;
+  const clientSecret = process.env.GCP_OAUTH_CLIENT_SECRET || process.env.GCP_CLIENT_SECRET;
   
   // Prioritize the company's specific OAuth token and folder, fallback to legacy global env
   const refreshToken = config.refreshToken || process.env.GCP_REFRESH_TOKEN;
   const folderId = config.folderId || process.env.GCP_DRIVE_FOLDER_ID;
 
-  // Gracefully fallback to local storage if credentials are not configured
+  // Throw error if credentials are not fully configured
   if (!clientId || !clientSecret || !refreshToken) {
-    console.log('[Google Drive] Credentials not found. Falling back to local storage.');
-    return await saveLocally(fileBuffer, fileName, jobSlug);
+    console.error('[Google Drive] Credentials not found. ClientID:', !!clientId, 'Secret:', !!clientSecret, 'Token:', !!refreshToken);
+    throw new Error('Google Drive integration is incomplete. Please check your Vercel Environment Variables.');
   }
 
   try {
@@ -131,8 +131,7 @@ export async function uploadToGoogleDrive(fileBuffer, fileName, jobSlug, config 
 
   } catch (error) {
     console.error('[Google Drive] Upload failed:', error);
-    console.log('[Google Drive] Falling back to local storage due to error.');
-    return await saveLocally(fileBuffer, fileName, jobSlug);
+    throw new Error('Failed to upload file to Google Drive. Please reconnect your account.');
   }
 }
 
@@ -156,26 +155,4 @@ export async function downloadFromGoogleDrive(fileId) {
   return Buffer.from(response.data);
 }
 
-/**
- * Fallback: save file locally when Google Drive is not configured.
- */
-export async function saveLocally(fileBuffer, fileName, jobSlug) {
-  const uploadDir = path.join(process.cwd(), 'data', 'uploads', jobSlug);
-  
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
 
-  const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-  const timestamp = Date.now();
-  const uniqueFileName = `${timestamp}-${safeFileName}`;
-  const filePath = path.join(uploadDir, uniqueFileName);
-
-  fs.writeFileSync(filePath, fileBuffer);
-  
-  return {
-    success: true,
-    storage: 'local',
-    local_path: `/data/uploads/${jobSlug}/${uniqueFileName}`
-  };
-}
