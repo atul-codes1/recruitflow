@@ -113,7 +113,7 @@ export default function DashboardHeader({ domain, profile }) {
                     {profile?.full_name || 'User'}
                   </span>
                   <span style={{ fontSize: '0.6875rem', color: 'var(--color-surface-400)', lineHeight: 1, marginTop: '0.25rem', textTransform: 'capitalize' }}>
-                    {profile?.role || 'Member'}
+                    {profile?.role || 'Recruiter'}
                   </span>
                 </div>
                 <span style={{ fontSize: '0.625rem', color: 'var(--color-surface-500)', transition: 'transform 0.2s', transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>

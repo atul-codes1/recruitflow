@@ -67,8 +67,8 @@ export default async function ProfilePage() {
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-surface-400)', marginBottom: '0.25rem', fontWeight: 500 }}>Organization Role</label>
-              <div style={{ display: 'inline-block', background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', padding: '0.3rem 0.8rem', borderRadius: '99px', fontSize: '0.85rem', fontWeight: 600, border: '1px solid rgba(99, 102, 241, 0.3)', textTransform: 'capitalize' }}>
-                {profile?.role || 'Member'}
+              <div style={{ display: 'inline-block', padding: '0.25rem 0.75rem', background: 'rgba(99,102,241,0.1)', color: '#818cf8', borderRadius: '999px', fontSize: '0.875rem', fontWeight: 600, textTransform: 'capitalize' }}>
+                {profile?.role || 'Recruiter'}
               </div>
             </div>
             <div>

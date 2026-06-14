@@ -112,12 +112,12 @@ export async function POST(request) {
     // Step 2.5: Enforce Role-Based Access Control (RBAC) Option B
     const serverSupabase = await createClient();
     const { data: { user } } = await serverSupabase.auth.getUser();
-    let role = 'member';
+    let role = 'recruiter';
     let myJobIds = [];
 
     if (user) {
       const { data: profile } = await serverSupabase.from('profiles').select('role').eq('id', user.id).single();
-      role = profile?.role || 'member';
+      role = profile?.role || 'recruiter';
     }
 
     if (role !== 'admin') {

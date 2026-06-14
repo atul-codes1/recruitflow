@@ -7,7 +7,7 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  const role = profile?.role || 'member';
+  const role = profile?.role || 'recruiter';
 
   const { data: jobs } = await supabase.from('jobs').select('*');
 
