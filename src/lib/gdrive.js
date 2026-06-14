@@ -102,36 +102,11 @@ export async function uploadToGoogleDrive(fileBuffer, fileName, jobSlug, config 
     };
 
     console.log(`[Google Drive] Uploading ${fileName} to Drive...`);
-    
-    let file;
-    try {
-      file = await drive.files.create({
-        resource: fileMetadata,
-        media: media,
-        fields: 'id, webViewLink, webContentLink',
-      });
-    } catch (createErr) {
-      if (createErr.message && createErr.message.includes('File not found:')) {
-        console.warn(`[Google Drive] The saved folder ID (${targetFolderId}) is invalid or was deleted by the user. Auto-recovering...`);
-        
-        // Remove the invalid parent and upload to root for now
-        // We also trigger a new folder creation to replace the broken one
-        const folderMetadata = { name: 'RecruitFlow Resumes (Recovered)', mimeType: 'application/vnd.google-apps.folder', parents: ['root'] };
-        const folderRes = await drive.files.create({ resource: folderMetadata, fields: 'id' });
-        
-        newFolderId = folderRes.data.id;
-        fileMetadata.parents = [newFolderId];
-        
-        console.log(`[Google Drive] Created recovery folder! New ID: ${newFolderId}. Retrying upload...`);
-        file = await drive.files.create({
-          resource: fileMetadata,
-          media: media,
-          fields: 'id, webViewLink, webContentLink',
-        });
-      } else {
-        throw createErr;
-      }
-    }
+    const file = await drive.files.create({
+      resource: fileMetadata,
+      media: media,
+      fields: 'id, webViewLink, webContentLink',
+    });
 
     // 2. Make the file publicly readable so anyone with the link can view it
     // (Required to view the resume directly in the Recruiter Dashboard without logging into Google)
