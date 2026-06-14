@@ -33,6 +33,7 @@ export default function AuthPage() {
     setError('');
     setLoading(true);
 
+    let success = false;
     try {
       // ------------------------------------------------------------------------
       // SSR AUTHENTICATION FLOW
@@ -46,15 +47,26 @@ export default function AuthPage() {
       });
 
       if (res.ok) {
+        success = true;
         // Hard redirect to clear bfcache and trigger the tenant router
         window.location.href = '/api/auth/route-tenant';
       } else {
         const data = await res.json();
-        setError(data.error || 'Invalid credentials');
+        // Standardize the Supabase error message for unregistered users
+        if (data.error && data.error.includes('Invalid login credentials')) {
+          setError('Invalid email or password. If you are a new user, please register first.');
+        } else {
+          setError(data.error || 'Invalid credentials');
+        }
       }
     } catch (err) {
-      setError('Failed to connect to the server.');
-    } finally {
+      console.error('Login exception:', err);
+      setError('Failed to connect to the server. Please check your internet connection.');
+    }
+
+    // Only turn off the loading spinner if we failed. 
+    // If successful, let it spin while the browser redirects!
+    if (!success) {
       setLoading(false);
     }
   };
