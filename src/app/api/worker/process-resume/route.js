@@ -61,7 +61,7 @@ async function handler(request) {
        console.log(`[Worker] Reading ${fileName} from Local Storage Fallback...`);
        const fs = require('fs');
        const path = require('path');
-       const fullPath = path.join(process.cwd(), local_path);
+       const fullPath = path.isAbsolute(local_path) ? local_path : path.join(process.cwd(), local_path);
        if (fs.existsSync(fullPath)) {
          buffer = fs.readFileSync(fullPath);
        } else {

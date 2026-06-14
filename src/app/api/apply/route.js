@@ -235,31 +235,33 @@ export async function POST(request) {
     
     if (process.env.NODE_ENV !== 'production' || !process.env.QSTASH_TOKEN) {
       // DEVELOPMENT FALLBACK:
-      // Upstash cloud cannot reach `localhost`, so we process via a fire-and-forget fetch.
-      // This is safe in local Node.js environments, but would be killed in Vercel (hence QStash for prod).
-      console.log('[Apply] Running in Local Dev (or missing QStash). Using fire-and-forget fetch to process.');
+      // Since Vercel kills background tasks immediately upon returning the response, 
+      // we must AWAIT this fetch if we don't have QStash configured. 
+      // This means the user will wait ~5-10s while it parses instead of an instant response.
+      console.log('[Apply] Running in Local Dev (or missing QStash). Awaiting fetch to process.');
       
-      const protocol = 'http';
+      const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
       const host = request.headers.get('host') || 'localhost:3000';
       const localUrl = `${protocol}://${host}/api/worker/process-resume`;
       
-      fetch(localUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          applicationId: application.id,
-          drive_file_id: uploadResult.drive_file_id || '',
-          local_path: uploadResult.local_path || '',
-          fileName,
-          jobSlug,
-          ext,
-        })
-      }).then(res => {
+      try {
+        const res = await fetch(localUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            applicationId: application.id,
+            drive_file_id: uploadResult.drive_file_id || '',
+            local_path: uploadResult.local_path || '',
+            fileName,
+            jobSlug,
+            ext,
+          })
+        });
         if (!res.ok) console.error('[Apply] Local worker returned', res.status);
-      }).catch(async (e) => {
+      } catch (e) {
         console.error('[Apply] Local processing failed:', e);
         await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: e.message }).eq('id', application.id);
-      });
+      }
       
     } else {
       // PRODUCTION ENTERPRISE:
