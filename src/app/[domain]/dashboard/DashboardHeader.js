@@ -158,6 +158,28 @@ export default function DashboardHeader({ domain, profile }) {
                       onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-active)'}
                       onMouseOut={(e) => e.currentTarget.style.background = 'none'}
                     >
+                      <span style={{ fontSize: '1rem' }}>👤</span> My Profile
+                    </Link>
+                    <Link 
+                      href={`/${domain}/dashboard/settings`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        width: '100%',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-surface-200)',
+                        padding: '0.75rem 1rem',
+                        fontSize: '0.875rem',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s',
+                        textDecoration: 'none',
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-active)'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                    >
                       <span style={{ fontSize: '1rem' }}>⚙️</span> Settings
                     </Link>
                     <Link 
@@ -264,6 +286,41 @@ export default function DashboardHeader({ domain, profile }) {
               <span style={{ fontSize: '1.25rem' }}>{link.icon}</span> {link.label}
             </Link>
           ))}
+          <div style={{ margin: '1rem 0', height: '1px', background: 'var(--border-light)' }}></div>
+          <Link 
+            href={`/${domain}/dashboard/profile`} 
+            onClick={() => setIsMobileMenuOpen(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              padding: '1rem',
+              borderRadius: '8px',
+              background: pathname === `/${domain}/dashboard/profile` ? 'rgba(99,102,241,0.15)' : 'var(--bg-subtle)',
+              color: pathname === `/${domain}/dashboard/profile` ? 'white' : 'var(--color-surface-200)',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+          >
+            <span style={{ fontSize: '1.25rem' }}>👤</span> My Profile
+          </Link>
+          <Link 
+            href={`/${domain}/dashboard/settings`} 
+            onClick={() => setIsMobileMenuOpen(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              padding: '1rem',
+              borderRadius: '8px',
+              background: pathname === `/${domain}/dashboard/settings` ? 'rgba(99,102,241,0.15)' : 'var(--bg-subtle)',
+              color: pathname === `/${domain}/dashboard/settings` ? 'white' : 'var(--color-surface-200)',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+          >
+            <span style={{ fontSize: '1.25rem' }}>⚙️</span> Settings
+          </Link>
           <div style={{ margin: '1rem 0', height: '1px', background: 'var(--border-light)' }}></div>
           <Link href={`/boards/${domain}`} target="_blank" className="btn-secondary" style={{ justifyContent: 'center' }}>
             Public Portal ↗

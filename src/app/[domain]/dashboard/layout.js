@@ -12,14 +12,15 @@ export default async function DashboardLayout({ children, params }) {
     redirect('/login');
   }
 
-  // Fetch the user's company domain to ensure they are in the right workspace
+  // Fetch the user's company domain and ID
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, role, companies(domain)')
+    .select('full_name, role, companies(id, domain)')
     .eq('id', user.id)
     .single();
 
   const userDomain = profile?.companies?.domain;
+  const companyId = profile?.companies?.id;
 
   if (!userDomain) {
     // Edge Case: No workspace found (Ghost session). Force them to log out.
