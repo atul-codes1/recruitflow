@@ -139,7 +139,7 @@ export default function DashboardHeader({ domain, profile }) {
                     backdropFilter: 'blur(16px)',
                   }}>
                     <Link 
-                      href={`/${domain}/dashboard/settings`}
+                      href={`/${domain}/dashboard/profile`}
                       style={{
                         display: 'flex',
                         alignItems: 'center',

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import CopyButton from './CopyButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -121,6 +122,7 @@ export default async function ProfilePage() {
                 outline: 'none',
               }} 
             />
+            <CopyButton textToCopy={company?.id || ''} />
           </div>
         </div>
 
