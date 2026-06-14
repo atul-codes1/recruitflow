@@ -308,6 +308,14 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Application submission error:', error);
+    
+    // Check if it's the specific error thrown when a company hasn't set up BYOS
+    if (error.message === 'BYOS_MISSING') {
+      return NextResponse.json({ 
+        error: 'This company has not configured a cloud storage provider (Google Drive/OneDrive) to receive resumes yet.' 
+      }, { status: 400 });
+    }
+    
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }

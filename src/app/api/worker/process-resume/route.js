@@ -56,21 +56,10 @@ async function handler(request) {
     if (drive_file_id) {
        console.log(`[Worker] Downloading ${fileName} from Google Drive...`);
        buffer = await downloadFromGoogleDrive(drive_file_id);
-    } else if (local_path) {
-       // Fallback for Local Development Environment where Google Drive OAuth isn't configured
-       console.log(`[Worker] Reading ${fileName} from Local Storage Fallback...`);
-       const fs = require('fs');
-       const path = require('path');
-       const fullPath = path.isAbsolute(local_path) ? local_path : path.join(process.cwd(), local_path);
-       if (fs.existsSync(fullPath)) {
-         buffer = fs.readFileSync(fullPath);
-       } else {
-         throw new Error('Local file not found.');
-       }
     } else {
-       console.error('[Worker] No file location provided (no drive ID or local path).');
-       await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: 'Upload failed before parsing.' }).eq('id', applicationId);
-       return NextResponse.json({ error: 'No file location' }, { status: 400 });
+       console.error('[Worker] No drive_file_id provided. The company has no BYOS integration connected.');
+       await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: 'Upload failed due to missing Cloud Storage Integration.' }).eq('id', applicationId);
+       return NextResponse.json({ error: 'Missing drive_file_id' }, { status: 400 });
     }
 
     // ------------------------------------------------------------------------
