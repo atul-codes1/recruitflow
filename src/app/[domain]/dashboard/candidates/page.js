@@ -6,8 +6,24 @@ export const dynamic = 'force-dynamic';
 
 export default async function CandidatesPage() {
   const supabase = await createClient();
-  const { data: applications } = await supabase.from('applications').select('*').order('created_at', { ascending: false });
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  const role = profile?.role || 'member';
+
   const { data: jobs } = await supabase.from('jobs').select('*').order('created_at', { ascending: false });
+
+  let appQuery = supabase.from('applications').select('*').order('created_at', { ascending: false });
+
+  if (role !== 'admin') {
+    const myJobs = jobs.filter(j => j.created_by === user.id).map(j => j.id);
+    if (myJobs.length > 0) {
+      appQuery = appQuery.or(`recruiter_id.eq.${user.id},job_id.in.(${myJobs.join(',')})`);
+    } else {
+      appQuery = appQuery.eq('recruiter_id', user.id);
+    }
+  }
+
+  const { data: applications } = await appQuery;
 
   const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('en-US', {

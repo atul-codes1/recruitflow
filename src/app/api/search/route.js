@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 
 /**
  * True Context-Window AI Search Engine
@@ -99,13 +100,36 @@ export async function POST(request) {
       console.log(`[Search] Falling back to standard Context-Window search without vectors...`);
       const { data: appsWithRaw, error: errWithRaw } = await supabase
         .from('applications')
-        .select('id, candidate_name, candidate_email, candidate_phone, experience_level, experience_years, skills, parsed_data, status, resume_filename, drive_web_url, job_id, created_at')
+        .select('id, candidate_name, candidate_email, candidate_phone, experience_level, experience_years, skills, parsed_data, status, resume_filename, drive_web_url, job_id, created_at, recruiter_id')
         .order('created_at', { ascending: false });
         
       if (errWithRaw) {
         return NextResponse.json({ error: 'Failed to fetch candidates.' }, { status: 500 });
       }
-      applications = appsWithRaw;
+      applications = appsWithRaw || [];
+    }
+
+    // Step 2.5: Enforce Role-Based Access Control (RBAC) Option B
+    const serverSupabase = await createClient();
+    const { data: { user } } = await serverSupabase.auth.getUser();
+    let role = 'member';
+    let myJobIds = [];
+
+    if (user) {
+      const { data: profile } = await serverSupabase.from('profiles').select('role').eq('id', user.id).single();
+      role = profile?.role || 'member';
+      
+      if (role !== 'admin') {
+        const { data: myJobs } = await serverSupabase.from('jobs').select('id').eq('created_by', user.id);
+        myJobIds = (myJobs || []).map(j => j.id);
+      }
+    }
+
+    if (role !== 'admin') {
+      console.log(`[Search] Filtering context window candidates for Recruiter ID: ${user?.id || 'unauth'}`);
+      applications = applications.filter(app => {
+        return app.recruiter_id === user?.id || myJobIds.includes(app.job_id);
+      });
     }
 
     if (!applications || applications.length === 0) {
