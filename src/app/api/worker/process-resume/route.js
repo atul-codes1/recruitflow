@@ -138,12 +138,13 @@ async function handler(request) {
          const apiKey = process.env.GEMINI_API_KEY;
          if (apiKey) {
            console.log(`[Worker] Generating Vector Embedding for ${fileName}...`);
-           const embRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`, {
+           const embRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key=${apiKey}`, {
              method: 'POST',
              headers: { 'Content-Type': 'application/json' },
              body: JSON.stringify({
-               model: 'models/text-embedding-004',
-               content: { parts: [{ text: embeddingText }] }
+               model: 'models/gemini-embedding-2',
+               content: { parts: [{ text: embeddingText }] },
+               outputDimensionality: 768
              })
            });
            if (embRes.ok) {

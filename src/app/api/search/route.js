@@ -70,12 +70,13 @@ export async function POST(request) {
     let queryEmbedding = null;
     try {
       console.log(`[Search] Generating Vector for query: "${query}"...`);
-      const embRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`, {
+      const embRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'models/text-embedding-004',
-          content: { parts: [{ text: query }] }
+          model: 'models/gemini-embedding-2',
+          content: { parts: [{ text: query }] },
+          outputDimensionality: 768
         })
       });
       if (embRes.ok) {
@@ -204,7 +205,7 @@ Below is a JSON array containing all candidates in our database.
 Read through their actual current roles, skills, and experience.
 
 Your job is to identify the candidates who genuinely match the search query.
-- DO NOT just do a naive keyword search (e.g. if the user wants a "React frontend engineer", DO NOT select a software engineer who only knows C/Linux or a recruiter doing talent acquisition).
+- DO NOT just do a naive keyword search (e.g. if the user wants a "React frontend engineer", DO NOT select a backend engineer who only knows Java/Spring).
 - Look at their ACTUAL current_role and skills.
 - Be extremely critical. If they do not fit the spirit of the query, give them a score of 0.
 - If they are an exact fit (e.g. their role perfectly matches), give them a score > 80.
