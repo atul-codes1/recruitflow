@@ -46,6 +46,13 @@ export const StorageFactory = {
         return await uploadToGoogleDrive(fileBuffer, fileName, jobSlug, config);
         
       default:
+        // ZERO-TOUCH AUTOMATION: If the database doesn't have a provider, but the Vercel Environment 
+        // Variables have a global GCP_REFRESH_TOKEN configured, automatically fall back to it!
+        if (process.env.GCP_REFRESH_TOKEN && (process.env.GCP_OAUTH_CLIENT_ID || process.env.GCP_CLIENT_ID)) {
+          console.log('[StorageFactory] Company has no provider, but global GCP_REFRESH_TOKEN found. Auto-routing to Google Drive.');
+          return await uploadToGoogleDrive(fileBuffer, fileName, jobSlug, {});
+        }
+
         console.error('[StorageFactory] No cloud integration found. BYOS is required.');
         throw new Error('BYOS_MISSING');
     }
