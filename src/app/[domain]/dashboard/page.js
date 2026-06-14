@@ -14,12 +14,7 @@ export default async function DashboardPage() {
   let appQuery = supabase.from('applications').select('*').order('created_at', { ascending: false });
 
   if (role !== 'admin') {
-    const myJobs = jobs.filter(j => j.created_by === user.id).map(j => j.id);
-    if (myJobs.length > 0) {
-      appQuery = appQuery.or(`recruiter_id.eq.${user.id},job_id.in.(${myJobs.join(',')})`);
-    } else {
-      appQuery = appQuery.eq('recruiter_id', user.id);
-    }
+    appQuery = appQuery.eq('recruiter_id', user.id);
   }
 
   const { data: applications } = await appQuery;

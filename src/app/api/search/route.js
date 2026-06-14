@@ -118,17 +118,12 @@ export async function POST(request) {
     if (user) {
       const { data: profile } = await serverSupabase.from('profiles').select('role').eq('id', user.id).single();
       role = profile?.role || 'member';
-      
-      if (role !== 'admin') {
-        const { data: myJobs } = await serverSupabase.from('jobs').select('id').eq('created_by', user.id);
-        myJobIds = (myJobs || []).map(j => j.id);
-      }
     }
 
     if (role !== 'admin') {
       console.log(`[Search] Filtering context window candidates for Recruiter ID: ${user?.id || 'unauth'}`);
       applications = applications.filter(app => {
-        return app.recruiter_id === user?.id || myJobIds.includes(app.job_id);
+        return app.recruiter_id === user?.id;
       });
     }
 
