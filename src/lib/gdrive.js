@@ -138,10 +138,10 @@ export async function uploadToGoogleDrive(fileBuffer, fileName, jobSlug, config 
 /**
  * Download a file from Google Drive.
  */
-export async function downloadFromGoogleDrive(fileId) {
-  const clientId = process.env.GCP_CLIENT_ID;
-  const clientSecret = process.env.GCP_CLIENT_SECRET;
-  const refreshToken = process.env.GCP_REFRESH_TOKEN;
+export async function downloadFromGoogleDrive(fileId, config = {}) {
+  const clientId = process.env.GCP_OAUTH_CLIENT_ID || process.env.GCP_CLIENT_ID;
+  const clientSecret = process.env.GCP_OAUTH_CLIENT_SECRET || process.env.GCP_CLIENT_SECRET;
+  const refreshToken = config.refreshToken || process.env.GCP_REFRESH_TOKEN;
 
   if (!clientId || !clientSecret || !refreshToken) {
     throw new Error('Google Drive credentials not configured');

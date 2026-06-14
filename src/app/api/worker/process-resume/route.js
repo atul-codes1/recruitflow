@@ -41,7 +41,7 @@ async function handler(request) {
   let reqBody = {};
   try {
     reqBody = await request.json();
-    const { applicationId, drive_file_id, local_path, fileName, ext } = reqBody;
+    const { applicationId, drive_file_id, local_path, fileName, ext, storage_config } = reqBody;
 
     console.log(`[Worker] Started processing application ${applicationId}...`);
 
@@ -55,7 +55,7 @@ async function handler(request) {
     // Download the raw file into a Buffer so we can parse it locally.
     if (drive_file_id) {
        console.log(`[Worker] Downloading ${fileName} from Google Drive...`);
-       buffer = await downloadFromGoogleDrive(drive_file_id);
+       buffer = await downloadFromGoogleDrive(drive_file_id, storage_config || {});
     } else {
        console.error('[Worker] No drive_file_id provided. The company has no BYOS integration connected.');
        await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: 'Upload failed due to missing Cloud Storage Integration.' }).eq('id', applicationId);

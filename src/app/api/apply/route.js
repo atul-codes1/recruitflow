@@ -255,6 +255,7 @@ export async function POST(request) {
             fileName,
             jobSlug,
             ext,
+            storage_config: job.companies?.storage_config || {},
           })
         });
         if (!res.ok) console.error('[Apply] Local worker returned', res.status);
@@ -291,6 +292,7 @@ export async function POST(request) {
             fileName,
             jobSlug,
             ext,
+            storage_config: job.companies?.storage_config || {},
           },
         });
         console.log(`[Apply] Successfully pushed Application ${application.id} to QStash at ${baseUrl}.`);
