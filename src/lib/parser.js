@@ -39,7 +39,7 @@ const ResumeSchema = z.object({
         parsed_city: z.string().nullable().default(null),
         country: z.string().nullable().default(null)
       }).nullable().default(null),
-      social_links: z.array(z.object({ platform: z.string(), url: z.string() })).default([])
+      social_links: z.array(z.object({ platform: z.string().nullable().default(null), url: z.string().nullable().default(null) })).default([])
     }).default({})
   }).default({}),
   professional_narrative: z.object({
@@ -50,7 +50,7 @@ const ResumeSchema = z.object({
   experience: z.array(z.object({
     company: z.string().nullable().default(null),
     role: z.string().nullable().default(null),
-    dates: z.object({ start: z.string().default(""), end: z.string().default("") }).default({}),
+    dates: z.object({ start: z.string().nullable().default(null), end: z.string().nullable().default(null) }).default({}),
     location: z.string().nullable().default(null),
     achievements: z.array(z.object({ text: z.string().nullable().default(null), metric: z.string().nullable().default(null), context: z.string().nullable().default(null) })).default([]),
     tech_stack_or_tools: z.array(z.string()).default([]),
@@ -75,13 +75,13 @@ const ResumeSchema = z.object({
     languages_spoken: z.array(z.string()).default([])
   }).default({}),
   certifications: z.array(z.object({
-    name: z.string().default(""),
+    name: z.string().nullable().default(null),
     issuer: z.string().nullable().default(null),
     year: z.string().nullable().default(null),
     link: z.string().nullable().default(null)
   })).default([]),
   custom_sections: z.array(z.object({
-    section_name: z.string().default(""),
+    section_name: z.string().nullable().default(null),
     content: z.any()
   })).default([]),
   raw_overflow_bin: z.string().nullable().default(null)
