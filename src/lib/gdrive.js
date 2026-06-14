@@ -131,7 +131,7 @@ export async function uploadToGoogleDrive(fileBuffer, fileName, jobSlug, config 
 
   } catch (error) {
     console.error('[Google Drive] Upload failed:', error);
-    throw new Error('Failed to upload file to Google Drive. Please reconnect your account.');
+    throw new Error(`Google Drive API Error: ${error.message}. Please reconnect your account if necessary.`);
   }
 }
 
