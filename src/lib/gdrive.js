@@ -16,14 +16,16 @@ import { Readable } from 'stream';
 /**
  * Upload a file to Google Drive.
  */
-export async function uploadToGoogleDrive(fileBuffer, fileName, jobSlug) {
+export async function uploadToGoogleDrive(fileBuffer, fileName, jobSlug, config = {}) {
   const clientId = process.env.GCP_CLIENT_ID;
   const clientSecret = process.env.GCP_CLIENT_SECRET;
-  const refreshToken = process.env.GCP_REFRESH_TOKEN;
-  const folderId = process.env.GCP_DRIVE_FOLDER_ID;
+  
+  // Prioritize the company's specific OAuth token and folder, fallback to legacy global env
+  const refreshToken = config.refreshToken || process.env.GCP_REFRESH_TOKEN;
+  const folderId = config.folderId || process.env.GCP_DRIVE_FOLDER_ID;
 
   // Gracefully fallback to local storage if credentials are not configured
-  if (!clientId || !clientSecret || !refreshToken || !folderId) {
+  if (!clientId || !clientSecret || !refreshToken) {
     console.log('[Google Drive] Credentials not found. Falling back to local storage.');
     return await saveLocally(fileBuffer, fileName, jobSlug);
   }
@@ -51,10 +53,41 @@ export async function uploadToGoogleDrive(fileBuffer, fileName, jobSlug) {
     if (fileName.toLowerCase().endsWith('.jpg') || fileName.toLowerCase().endsWith('.jpeg')) mimeType = 'image/jpeg';
     if (fileName.toLowerCase().endsWith('.docx')) mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
+    let targetFolderId = folderId;
+    let newFolderId = null;
+
+    if (!targetFolderId) {
+      console.log(`[Google Drive] No folder ID specified. Searching for 'RecruitFlow Resumes' in root...`);
+      const searchRes = await drive.files.list({
+        q: "mimeType='application/vnd.google-apps.folder' and name='RecruitFlow Resumes' and 'root' in parents and trashed=false",
+        fields: 'files(id, name)',
+        spaces: 'drive'
+      });
+
+      if (searchRes.data.files && searchRes.data.files.length > 0) {
+        targetFolderId = searchRes.data.files[0].id;
+        console.log(`[Google Drive] Found existing folder! ID: ${targetFolderId}`);
+      } else {
+        console.log(`[Google Drive] Folder not found. Creating 'RecruitFlow Resumes'...`);
+        const folderMetadata = {
+          name: 'RecruitFlow Resumes',
+          mimeType: 'application/vnd.google-apps.folder',
+          parents: ['root']
+        };
+        const folderRes = await drive.files.create({
+          resource: folderMetadata,
+          fields: 'id'
+        });
+        targetFolderId = folderRes.data.id;
+        console.log(`[Google Drive] Successfully created new folder! ID: ${targetFolderId}`);
+      }
+      newFolderId = targetFolderId; // Signal the factory to save this in the DB
+    }
+
     // 1. Upload the file to the specific folder
     const fileMetadata = {
       name: fileName,
-      parents: [folderId],
+      parents: [targetFolderId],
     };
     
     const media = {
@@ -86,7 +119,8 @@ export async function uploadToGoogleDrive(fileBuffer, fileName, jobSlug) {
       storage: 'google_drive',
       drive_file_id: file.data.id,
       drive_web_url: file.data.webViewLink,
-      local_path: '' // No local path since it's in the cloud
+      local_path: '', // No local path since it's in the cloud
+      new_folder_id: newFolderId // Pass this back so the Ingestion layer can save it to Supabase!
     };
 
   } catch (error) {

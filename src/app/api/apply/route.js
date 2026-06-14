@@ -16,7 +16,7 @@
 
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { uploadToGoogleDrive } from '@/lib/gdrive';
+import { StorageFactory } from '@/lib/storage/index';
 import { Client } from "@upstash/qstash";
 import crypto from 'crypto';
 
@@ -34,10 +34,15 @@ export async function POST(request) {
 
     const supabaseAdmin = createAdminClient();
 
-    // 1. Validate Job & Fetch Recruiter ID
+    // 1. Validate Job & Fetch Company Storage Config
     const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
-      .select('id, company_id, created_by')
+      .select(`
+        id, 
+        company_id, 
+        created_by,
+        companies:company_id (storage_provider, storage_config)
+      `)
       .eq('slug', jobSlug)
       .eq('is_active', true)
       .single();
@@ -129,12 +134,30 @@ export async function POST(request) {
       }
     }
 
-    // STEP 1: Upload directly to Google Drive (Synchronous)
-    console.log(`[Apply] Uploading ${fileName} to Google Drive (or local fallback)...`);
-    const uploadResult = await uploadToGoogleDrive(buffer, fileName, jobSlug);
+    // STEP 1: Upload dynamically via the Storage Factory (BYOS)
+    console.log(`[Apply] Routing ${fileName} to ${job.companies?.storage_provider || 'unconfigured'}...`);
+    const uploadResult = await StorageFactory.upload(
+      job.companies?.storage_provider,
+      job.companies?.storage_config || {},
+      buffer,
+      fileName,
+      jobSlug
+    );
     
     if (!uploadResult || !uploadResult.success) {
        return NextResponse.json({ error: 'Failed to safely upload resume. Please try again.' }, { status: 500 });
+    }
+
+    // [ZERO-TOUCH AUTOMATION] If the storage adapter automatically created a new folder, save the ID!
+    if (uploadResult.new_folder_id && job.companies?.storage_provider) {
+      const updatedConfig = { 
+        ...(job.companies.storage_config || {}), 
+        folderId: uploadResult.new_folder_id 
+      };
+      console.log(`[Apply] Saving auto-created folder ID (${uploadResult.new_folder_id}) to company config...`);
+      await supabaseAdmin.from('companies')
+        .update({ storage_config: updatedConfig })
+        .eq('id', job.company_id);
     }
 
     // STEP 2: Fast Database Insert (Mark as Queued)
