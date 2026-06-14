@@ -222,6 +222,7 @@ export async function POST(request) {
               fileName,
               jobSlug: 'global-pool',
               ext,
+              storage_config: profile.companies?.storage_config || {},
             })
           });
           if (!res.ok) throw new Error('Worker returned ' + res.status);
@@ -247,12 +248,13 @@ export async function POST(request) {
             fileName,
             jobSlug: 'global-pool',
             ext,
+            storage_config: profile.companies?.storage_config || {},
           },
         });
         console.log(`[Agent Sync] Queued to QStash`);
       } catch (qErr) {
         console.error('[Agent Sync] Failed to push to QStash:', qErr);
-        await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: 'Failed to connect to QStash API.' }).eq('id', application.id);
+        await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: `QStash Error: ${qErr.message}` }).eq('id', application.id);
       }
     }
 
