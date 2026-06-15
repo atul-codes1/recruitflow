@@ -385,9 +385,10 @@ IMPORTANT RULES:
 2. MISSING DATA: If a piece of information is not found in the text, you MUST return 'null' for strings/numbers and '[]' for arrays. Do NOT hallucinate or guess.
 3. EXPERIENCE CALCULATION: Carefully calculate 'years_of_experience_calculated' by summing the duration of all professional roles. You MUST explicitly exclude any gaps in employment (unemployed periods) from this calculation. Do not double-count overlapping dates. If there is no experience, return 0.
 4. ACHIEVEMENTS & RESPONSIBILITIES: You MUST extract ALL descriptions, bullet points, responsibilities, and daily tasks under a job into the 'achievements' array. Do not leave 'achievements' empty if the job has a description! If a bullet point contains a number or percentage, put it in 'metric'.
-5. GLOBAL SKILL INFERENCE: Do NOT just look for a "Skills" section. You MUST deeply analyze the entire resume (the summary, job responsibilities, bullet points, education) and extract/infer every single hard skill, soft skill, tool, technology, and domain expertise mentioned.
+5. GLOBAL SKILL INFERENCE: Do NOT just look for a "Skills" section. You MUST deeply analyze the entire resume (the summary, job responsibilities, bullet points, education) and extract/infer every single hard skill, soft skill, tool, technology, and domain expertise mentioned. If a skill is implied by a framework (e.g. React implies JavaScript), extract both!
 6. OVERFLOW: Any random text, reference details, weird disclaimers, or unstructured data that absolutely does not fit into the schema MUST be dumped into 'raw_overflow_bin'.
 7. DATES: Standardize dates to YYYY-MM. If only a year is provided, use YYYY-01.
+8. EDUCATION & DEGREES: Aggressively extract all educational background. Standardize degree acronyms where possible (e.g., "B.E." or "B.Tech" -> "Bachelor of Technology", "MCA" -> "Master of Computer Applications"). This is critical for filtering candidates by degree.
 
 Resume Text:
 ${text.substring(0, 15000)} // Ensure we cap at a reasonable size
