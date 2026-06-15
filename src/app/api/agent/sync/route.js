@@ -236,7 +236,10 @@ export async function POST(request) {
         const qstash = new Client({ token: process.env.QSTASH_TOKEN });
         const protocol = 'https';
         const host = request.headers.get('host');
-        let baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (host ? `${protocol}://${host}` : 'https://recruitflow-nexion.vercel.app');
+        let baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+        if (!baseUrl || baseUrl.includes('localhost')) {
+          baseUrl = host && !host.includes('localhost') ? `${protocol}://${host}` : 'https://recruitflow-nexion.vercel.app';
+        }
         if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
         
         await qstash.publishJSON({
