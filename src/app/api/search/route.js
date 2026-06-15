@@ -89,7 +89,10 @@ Return strictly valid JSON with these keys:
       if (interpRes.ok) {
         const data = await interpRes.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) hardFilters = JSON.parse(text);
+        if (text) {
+          const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+          hardFilters = JSON.parse(cleanedText);
+        }
       }
     } catch(e) {
       console.warn('[Search] Failed to run query interpreter', e);
