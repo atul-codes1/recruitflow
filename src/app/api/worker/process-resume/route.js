@@ -117,15 +117,17 @@ async function handler(request) {
     // We synthesize the most important parsed data into a dense paragraph.
     // This paragraph is then converted into a 768-Dimension vector so recruiters can use semantic search 
     // (e.g. "Find me someone who knows React and lives in Texas").
-    const role = parsedData?.experience?.[0]?.role || parsedData?.professional_narrative?.current_seniority_level || '';
-    const exp = parsedData?.professional_narrative?.years_of_experience_calculated || 0;
+    const role = parsedData?.experience?.[0]?.role?.title || parsedData?.professional_narrative?.inferred_seniority || '';
+    const exp = parsedData?.professional_narrative?.total_years_experience || 0;
     const skillsArr = [
-      ...(parsedData?.competencies?.hard_skills || []),
-      ...(parsedData?.competencies?.soft_skills || []),
+      ...(parsedData?.competencies?.programming_languages || []),
+      ...(parsedData?.competencies?.frameworks_and_libraries || []),
+      ...(parsedData?.competencies?.tools_and_platforms || []),
+      ...(parsedData?.competencies?.cloud_and_devops || []),
       ...(parsedData?.competencies?.domain_expertise || []),
-      ...(parsedData?.competencies?.languages_spoken || [])
+      ...(parsedData?.competencies?.soft_skills || [])
     ];
-    const edu = (parsedData?.education || []).map(e => e.degree).join(', ');
+    const edu = (parsedData?.education || []).map(e => e.degree_type).join(', ');
     const sum = parsedData?.professional_narrative?.summary || '';
     const location = parsedData?.candidate?.contact?.location?.raw || '';
     
@@ -165,9 +167,9 @@ async function handler(request) {
     console.log(`[Worker] AI parsing complete. Updating database...`);
     await supabaseAdmin.from('applications').update({
       candidate_name: parsedData?.candidate?.name || 'Unknown Candidate',
-      candidate_email: parsedData?.candidate?.contact?.email || '',
-      candidate_phone: parsedData?.candidate?.contact?.phone || '',
-      experience_years: parsedData?.professional_narrative?.years_of_experience_calculated || null,
+      candidate_email: parsedData?.candidate?.contact?.emails?.[0] || '',
+      candidate_phone: parsedData?.candidate?.contact?.phones?.[0] || '',
+      experience_years: parsedData?.professional_narrative?.total_years_experience || null,
       skills: skillsArr,
       parsed_data: parsedData,
       raw_text: text,
