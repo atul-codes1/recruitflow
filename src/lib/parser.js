@@ -388,7 +388,7 @@ IMPORTANT RULES:
 5. GLOBAL SKILL INFERENCE: Do NOT just look for a "Skills" section. You MUST deeply analyze the entire resume (the summary, job responsibilities, bullet points, education) and extract/infer every single hard skill, soft skill, tool, technology, and domain expertise mentioned. If a skill is implied by a framework (e.g. React implies JavaScript), extract both!
 6. OVERFLOW: Any random text, reference details, weird disclaimers, or unstructured data that absolutely does not fit into the schema MUST be dumped into 'raw_overflow_bin'.
 7. DATES: Standardize dates to YYYY-MM. If only a year is provided, use YYYY-01.
-8. EDUCATION & DEGREES: Aggressively extract all educational background. Standardize degree acronyms where possible (e.g., "B.E." or "B.Tech" -> "Bachelor of Technology", "MCA" -> "Master of Computer Applications"). This is critical for filtering candidates by degree.
+8. EDUCATION & DEGREES: Aggressively extract all educational background. Standardize ALL degree acronyms universally (e.g., "B.E." / "B.Tech" -> "Bachelor of Technology", "B.A." -> "Bachelor of Arts", "B.Sc" -> "Bachelor of Science", "MBA" -> "Master of Business Administration", "PhD" -> "Doctor of Philosophy"). You MUST spell out the full, formal name of the degree. This is critical for exact-match filtering.
 
 Resume Text:
 ${text.substring(0, 15000)} // Ensure we cap at a reasonable size
