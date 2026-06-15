@@ -57,15 +57,50 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Please enter a search query (at least 3 characters).' }, { status: 400 });
     }
 
-    // ------------------------------------------------------------------------
-    // STEP 1: GENERATE VECTOR EMBEDDING FOR THE QUERY
-    // ------------------------------------------------------------------------
-    // To search the database semantically, we must translate the user's text query 
-    // into the exact same 768-D mathematical space as the resumes.
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
        return NextResponse.json({ error: 'Gemini API key not configured for AI search.' }, { status: 500 });
     }
+
+    // ------------------------------------------------------------------------
+    // STEP 1: QUERY INTERPRETER AI (The Librarian)
+    // ------------------------------------------------------------------------
+    console.log(`[Search] Step 1: Extracting hard filters from query...`);
+    const interpreterPrompt = `You are a search query interpreter for an Applicant Tracking System.
+Extract hard filters from this user search query: "${query}"
+
+Return strictly valid JSON with these keys:
+- "experience_min": number | null (e.g. if they want 5+ years, return 5. If not specified, return null)
+- "locations": [string] | null (e.g. if they say "Delhi NCR", return ["Delhi", "New Delhi", "Gurugram", "Noida"]. If not specified, return null)
+- "degrees": [string] | null (e.g. if they say "Engineering", return ["Engineering", "Technology", "B.Tech"]. If not specified, return null)
+- "must_have_skills": [string] | null (only skills EXPLICITLY required in the prompt)
+`;
+
+    let hardFilters = { experience_min: null, locations: null, degrees: null, must_have_skills: null };
+    try {
+      const interpRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: interpreterPrompt }] }],
+          generationConfig: { temperature: 0.1, responseMimeType: "application/json" }
+        })
+      });
+      if (interpRes.ok) {
+        const data = await interpRes.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) hardFilters = JSON.parse(text);
+      }
+    } catch(e) {
+      console.warn('[Search] Failed to run query interpreter', e);
+    }
+    console.log('[Search] Extracted Filters:', hardFilters);
+
+    // ------------------------------------------------------------------------
+    // STEP 2: GENERATE VECTOR EMBEDDING FOR THE QUERY
+    // ------------------------------------------------------------------------
+    // To search the database semantically, we must translate the user's text query 
+    // into the exact same 768-D mathematical space as the resumes.
 
     let queryEmbedding = null;
     try {
@@ -88,7 +123,7 @@ export async function POST(request) {
     }
 
     // ------------------------------------------------------------------------
-    // STEP 2: FETCH CANDIDATES (Retrieval Augmented Generation - RAG)
+    // STEP 3: FETCH CANDIDATES (Retrieval Augmented Generation - RAG)
     // ------------------------------------------------------------------------
     let applications = [];
     let isVectorSearch = false;
@@ -142,7 +177,7 @@ export async function POST(request) {
     }
 
     // ------------------------------------------------------------------------
-    // STEP 3: ENFORCE ROLE-BASED ACCESS CONTROL (RBAC)
+    // STEP 4: ENFORCE ROLE-BASED ACCESS CONTROL (RBAC)
     // ------------------------------------------------------------------------
     // Important Security Step: The `supabase` client above is a generic service role client, 
     // so it bypassed RLS. We must manually filter the candidates based on the logged-in user.
@@ -167,31 +202,75 @@ export async function POST(request) {
       return NextResponse.json({ results: [], message: 'No candidates in the database yet.', total_candidates: totalCandidatesInDb, matches_found: 0, query });
     }
 
-    // Step 3.5: Fetch jobs for UI mapping
+    // ------------------------------------------------------------------------
+    // STEP 5: APPLY HARD FILTERS (The Librarian)
+    // ------------------------------------------------------------------------
+    let filteredApplications = applications;
+    
+    if (hardFilters.experience_min !== null) {
+      filteredApplications = filteredApplications.filter(app => {
+         const exp = app.parsed_data?.professional_narrative?.total_years_experience || app.experience_years || 0;
+         return exp >= hardFilters.experience_min;
+      });
+    }
+
+    if (hardFilters.locations && hardFilters.locations.length > 0) {
+      filteredApplications = filteredApplications.filter(app => {
+         const locRaw = (app.parsed_data?.candidate?.contact?.location?.raw || '').toLowerCase();
+         const locCity = (app.parsed_data?.candidate?.contact?.location?.city || '').toLowerCase();
+         return hardFilters.locations.some(l => locRaw.includes(l.toLowerCase()) || locCity.includes(l.toLowerCase()));
+      });
+    }
+
+    if (hardFilters.degrees && hardFilters.degrees.length > 0) {
+      filteredApplications = filteredApplications.filter(app => {
+         const educationStr = JSON.stringify(app.parsed_data?.education || []).toLowerCase();
+         return hardFilters.degrees.some(d => educationStr.includes(d.toLowerCase()));
+      });
+    }
+
+    // If hard filters killed everyone, fall back to the vector/full scan so we don't return 0 results
+    if (filteredApplications.length > 0) {
+      applications = filteredApplications;
+    } else {
+      console.log(`[Search] Hard filters eliminated everyone. Ignoring filters to prevent empty state.`);
+    }
+
+    // Step 5.5: Fetch jobs for UI mapping
     const { data: jobs } = await supabase.from('jobs').select('id, title, company');
     const jobMap = {};
     (jobs || []).forEach(j => { jobMap[j.id] = j; });
 
     // ------------------------------------------------------------------------
-    // STEP 4: PREPARE THE CONTEXT PAYLOAD
+    // STEP 6: PREPARE THE CONTEXT PAYLOAD
     // ------------------------------------------------------------------------
     // Strip out all the heavy JSON, raw text, and system IDs. 
     // We only send the minimum data needed for the AI to judge the candidate to save tokens.
     const candidateContext = applications.map(app => {
+      const p = app.parsed_data;
+      const allSkills = [
+        ...(p?.competencies?.programming_languages || []),
+        ...(p?.competencies?.frameworks_and_libraries || []),
+        ...(p?.competencies?.tools_and_platforms || []),
+        ...(p?.competencies?.cloud_and_devops || []),
+        ...(p?.competencies?.domain_expertise || []),
+        ...(p?.competencies?.soft_skills || [])
+      ];
+
       return {
         id: app.id,
-        name: app.parsed_data?.candidate?.name || app.candidate_name || 'Unknown',
-        current_role: app.parsed_data?.experience?.[0]?.role || app.parsed_data?.professional_narrative?.current_seniority_level || 'Unknown',
-        total_experience_years: app.parsed_data?.professional_narrative?.years_of_experience_calculated ?? app.experience_years ?? 0,
-        skills: app.skills || [],
-        location: app.parsed_data?.candidate?.contact?.location?.raw || 'Unknown',
-        summary: app.parsed_data?.professional_narrative?.summary || '',
-        education: (app.parsed_data?.education || []).map(e => e.degree).join(', ')
+        name: p?.candidate?.name || app.candidate_name || 'Unknown',
+        current_role: p?.experience?.[0]?.role?.title || p?.professional_narrative?.inferred_seniority || 'Unknown',
+        total_experience_years: p?.professional_narrative?.total_years_experience ?? app.experience_years ?? 0,
+        skills: allSkills.length > 0 ? allSkills : (app.skills || []),
+        location: p?.candidate?.contact?.location?.city || p?.candidate?.contact?.location?.raw || 'Unknown',
+        summary: p?.professional_narrative?.executive_summary || '',
+        education: (p?.education || []).map(e => e.degree_type).join(', ')
       };
     });
 
     // ------------------------------------------------------------------------
-    // STEP 5: EXECUTE LLM REASONING
+    // STEP 7: EXECUTE LLM REASONING
     // ------------------------------------------------------------------------
     // We pass the context payload to Gemini and force it to output a ranked JSON array.
     // Temperature is kept at 0.1 to prevent hallucinations.
@@ -253,7 +332,7 @@ ${JSON.stringify(candidateContext, null, 2)}
     }
 
     // ------------------------------------------------------------------------
-    // STEP 6: DATA RE-HYDRATION
+    // STEP 8: DATA RE-HYDRATION
     // ------------------------------------------------------------------------
     // Merge the AI rankings (which only have the ID and Score) back with the 
     // full candidate data (names, links, etc.) so the UI can display the rich profile cards.
@@ -268,15 +347,15 @@ ${JSON.stringify(candidateContext, null, 2)}
           reason: ranked.reason,
           matchedKeywords: 0, // Legacy fallback mapping
           candidate_name: app.parsed_data?.candidate?.name || app.candidate_name || 'Unknown',
-          candidate_email: app.parsed_data?.candidate?.contact?.email || app.candidate_email || '',
-          candidate_phone: app.parsed_data?.candidate?.contact?.phone || app.candidate_phone || '',
-          current_title: app.parsed_data?.experience?.[0]?.role || app.parsed_data?.professional_narrative?.current_seniority_level || '',
-          current_company: app.parsed_data?.experience?.[0]?.company || '',
-          experience_years: app.parsed_data?.professional_narrative?.years_of_experience_calculated ?? app.experience_years ?? null,
+          candidate_email: app.parsed_data?.candidate?.contact?.emails?.[0] || app.candidate_email || '',
+          candidate_phone: app.parsed_data?.candidate?.contact?.phones?.[0] || app.candidate_phone || '',
+          current_title: app.parsed_data?.experience?.[0]?.role?.title || app.parsed_data?.professional_narrative?.inferred_seniority || '',
+          current_company: app.parsed_data?.experience?.[0]?.company?.name || '',
+          experience_years: app.parsed_data?.professional_narrative?.total_years_experience ?? app.experience_years ?? null,
           skills: app.skills || [],
-          location: app.parsed_data?.candidate?.contact?.location?.raw || '',
+          location: app.parsed_data?.candidate?.contact?.location?.raw || app.parsed_data?.candidate?.contact?.location?.city || '',
           education: app.parsed_data?.education || [],
-          summary: app.parsed_data?.professional_narrative?.summary || '',
+          summary: app.parsed_data?.professional_narrative?.executive_summary || '',
           job_title: job?.title || 'Unknown Job',
           job_company: job?.company || '',
           status: app.status,
