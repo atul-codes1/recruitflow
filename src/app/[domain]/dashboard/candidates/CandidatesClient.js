@@ -109,44 +109,81 @@ export default function CandidatesClient({ initialApplications, jobs }) {
   return (
     <div>
       {/* Tabs Bar */}
-      <div style={{ display: 'flex', gap: '2rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)' }}>
+      <div style={{ 
+        display: 'inline-flex', 
+        gap: '0.5rem', 
+        marginBottom: '2rem', 
+        background: 'var(--bg-panel)',
+        padding: '0.375rem',
+        borderRadius: '9999px',
+        border: '1px solid var(--border-light)',
+        boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.02)'
+      }}>
         <button
           onClick={() => { setActiveTab('inbound'); setRoleFilter('all'); }}
           style={{
-            padding: '0.75rem 0',
-            background: 'none',
+            padding: '0.625rem 1.25rem',
+            background: activeTab === 'inbound' ? '#6366f1' : 'transparent',
             border: 'none',
-            borderBottom: activeTab === 'inbound' ? '2px solid #6366f1' : '2px solid transparent',
-            color: activeTab === 'inbound' ? '#6366f1' : 'var(--color-surface-400)',
+            borderRadius: '9999px',
+            color: activeTab === 'inbound' ? '#ffffff' : 'var(--color-surface-400)',
             fontWeight: activeTab === 'inbound' ? 600 : 500,
-            fontSize: '1rem',
+            fontSize: '0.9375rem',
             cursor: 'pointer',
-            transition: 'all 0.2s ease',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem'
+            gap: '0.5rem',
+            boxShadow: activeTab === 'inbound' ? '0 4px 12px rgba(99, 102, 241, 0.3)' : 'none',
+            transform: activeTab === 'inbound' ? 'scale(1)' : 'scale(0.98)',
+          }}
+          onMouseOver={(e) => {
+            if (activeTab !== 'inbound') {
+              e.currentTarget.style.color = 'var(--color-surface-200)';
+              e.currentTarget.style.background = 'var(--bg-subtle)';
+            }
+          }}
+          onMouseOut={(e) => {
+            if (activeTab !== 'inbound') {
+              e.currentTarget.style.color = 'var(--color-surface-400)';
+              e.currentTarget.style.background = 'transparent';
+            }
           }}
         >
-          <span>💼</span> Job Applicants
+          <span style={{ filter: activeTab === 'inbound' ? 'brightness(1.5)' : 'grayscale(0.5)' }}>💼</span> Job Applicants
         </button>
         <button
           onClick={() => setActiveTab('pool')}
           style={{
-            padding: '0.75rem 0',
-            background: 'none',
+            padding: '0.625rem 1.25rem',
+            background: activeTab === 'pool' ? '#10b981' : 'transparent',
             border: 'none',
-            borderBottom: activeTab === 'pool' ? '2px solid #10b981' : '2px solid transparent',
-            color: activeTab === 'pool' ? '#10b981' : 'var(--color-surface-400)',
+            borderRadius: '9999px',
+            color: activeTab === 'pool' ? '#ffffff' : 'var(--color-surface-400)',
             fontWeight: activeTab === 'pool' ? 600 : 500,
-            fontSize: '1rem',
+            fontSize: '0.9375rem',
             cursor: 'pointer',
-            transition: 'all 0.2s ease',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem'
+            gap: '0.5rem',
+            boxShadow: activeTab === 'pool' ? '0 4px 12px rgba(16, 185, 129, 0.3)' : 'none',
+            transform: activeTab === 'pool' ? 'scale(1)' : 'scale(0.98)',
+          }}
+          onMouseOver={(e) => {
+            if (activeTab !== 'pool') {
+              e.currentTarget.style.color = 'var(--color-surface-200)';
+              e.currentTarget.style.background = 'var(--bg-subtle)';
+            }
+          }}
+          onMouseOut={(e) => {
+            if (activeTab !== 'pool') {
+              e.currentTarget.style.color = 'var(--color-surface-400)';
+              e.currentTarget.style.background = 'transparent';
+            }
           }}
         >
-          <span>🗂️</span> Talent Database
+          <span style={{ filter: activeTab === 'pool' ? 'brightness(1.5)' : 'grayscale(0.5)' }}>🗂️</span> Talent Database
         </button>
       </div>
 
