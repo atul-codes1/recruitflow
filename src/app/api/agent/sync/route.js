@@ -208,29 +208,30 @@ export async function POST(request) {
     // Because the Desktop Agent iterates over thousands of files, we MUST return 200 OK instantly.
     // We offload the Gemini API calls to the background worker via Upstash.
     if (process.env.NODE_ENV !== 'production' || !process.env.QSTASH_TOKEN) {
-      console.log('[Agent Sync] Running locally using after()');
-      const { after } = require('next/server');
-      after(async () => {
-        try {
-          const res = await fetch(`http://localhost:${process.env.PORT || 3000}/api/worker/process-resume`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              applicationId: application.id,
-              drive_file_id: uploadResult.drive_file_id || '',
-              local_path: uploadResult.local_path || '',
-              fileName,
-              jobSlug: 'global-pool',
-              ext,
-              storage_config: profile.companies?.storage_config || {},
-            })
-          });
-          if (!res.ok) throw new Error('Worker returned ' + res.status);
-        } catch (e) {
-          console.error('[Agent Sync] Local processing failed:', e);
-          await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: e.message }).eq('id', application.id);
-        }
-      });
+      console.log('[Agent Sync] Running locally using await fetch()');
+      const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+      const host = request.headers.get('host') || 'localhost:3000';
+      const localUrl = `${protocol}://${host}/api/worker/process-resume`;
+      
+      try {
+        const res = await fetch(localUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            applicationId: application.id,
+            drive_file_id: uploadResult.drive_file_id || '',
+            local_path: uploadResult.local_path || '',
+            fileName,
+            jobSlug: 'global-pool',
+            ext,
+            storage_config: profile.companies?.storage_config || {},
+          })
+        });
+        if (!res.ok) console.error('[Agent Sync] Local worker returned', res.status);
+      } catch (e) {
+        console.error('[Agent Sync] Local processing failed:', e);
+        await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: e.message }).eq('id', application.id);
+      }
     } else {
       try {
         const qstash = new Client({ token: process.env.QSTASH_TOKEN });
