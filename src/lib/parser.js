@@ -32,57 +32,132 @@ const ResumeSchema = z.object({
   candidate: z.object({
     name: z.string().nullable().default(null),
     contact: z.object({
-      email: z.string().nullable().default(null),
-      phone: z.string().nullable().default(null),
+      emails: z.array(z.string()).default([]),
+      phones: z.array(z.string()).default([]),
       location: z.object({
         raw: z.string().nullable().default(null),
-        parsed_city: z.string().nullable().default(null),
-        country: z.string().nullable().default(null)
+        city: z.string().nullable().default(null),
+        state_province: z.string().nullable().default(null),
+        country: z.string().nullable().default(null),
+        postal_code: z.string().nullable().default(null),
+        timezone_inferred: z.string().nullable().default(null)
       }).nullable().default(null),
-      social_links: z.array(z.object({ platform: z.string().nullable().default(null), url: z.string().nullable().default(null) })).default([])
+      links: z.array(z.object({
+        type: z.string().nullable().default(null),
+        url: z.string().nullable().default(null)
+      })).default([])
+    }).default({}),
+    demographics_and_logistics: z.object({
+      willing_to_relocate: z.boolean().nullable().default(null),
+      relocation_destinations: z.array(z.string()).default([]),
+      open_to_remote: z.boolean().nullable().default(null),
+      visa_status: z.string().nullable().default(null),
+      security_clearance: z.string().nullable().default(null),
+      languages: z.array(z.object({
+        language: z.string().nullable().default(null),
+        proficiency: z.string().nullable().default(null)
+      })).default([]),
+      hobbies_and_interests: z.array(z.string()).default([])
     }).default({})
   }).default({}),
   professional_narrative: z.object({
-    summary: z.string().nullable().default(null),
-    years_of_experience_calculated: z.number().nullable().default(null),
-    current_seniority_level: z.string().nullable().default(null)
+    executive_summary: z.string().nullable().default(null),
+    total_years_experience: z.number().nullable().default(null),
+    inferred_seniority: z.string().nullable().default(null),
+    management_experience: z.object({
+      has_managed_teams: z.boolean().nullable().default(null),
+      max_team_size: z.number().nullable().default(null)
+    }).default({}),
+    career_breaks: z.array(z.object({
+      reason: z.string().nullable().default(null),
+      dates: z.object({ start: z.string().nullable().default(null), end: z.string().nullable().default(null) }).default({})
+    })).default([])
   }).default({}),
   experience: z.array(z.object({
-    company: z.string().nullable().default(null),
-    role: z.string().nullable().default(null),
-    dates: z.object({ start: z.string().nullable().default(null), end: z.string().nullable().default(null) }).default({}),
-    location: z.string().nullable().default(null),
-    achievements: z.array(z.object({ text: z.string().nullable().default(null), metric: z.string().nullable().default(null), context: z.string().nullable().default(null) })).default([]),
-    tech_stack_or_tools: z.array(z.string()).default([]),
-    industry_sector: z.string().nullable().default(null)
+    company: z.object({
+      name: z.string().nullable().default(null),
+      industry: z.string().nullable().default(null),
+      description: z.string().nullable().default(null)
+    }).default({}),
+    role: z.object({
+      title: z.string().nullable().default(null),
+      is_managerial: z.boolean().nullable().default(null),
+      type: z.string().nullable().default(null)
+    }).default({}),
+    dates: z.object({
+      start: z.string().nullable().default(null),
+      end: z.string().nullable().default(null),
+      duration_months: z.number().nullable().default(null),
+      is_current: z.boolean().nullable().default(null)
+    }).default({}),
+    location: z.object({
+      raw: z.string().nullable().default(null),
+      is_remote: z.boolean().nullable().default(null)
+    }).default({}),
+    achievements: z.array(z.object({
+      description: z.string().nullable().default(null),
+      metrics: z.array(z.string()).default([]),
+      skills_applied: z.array(z.string()).default([])
+    })).default([])
   })).default([]),
   education: z.array(z.object({
     institution: z.string().nullable().default(null),
-    degree: z.string().nullable().default(null),
-    field: z.string().nullable().default(null),
-    year_graduated: z.number().nullable().default(null)
+    degree_type: z.string().nullable().default(null),
+    major_field: z.string().nullable().default(null),
+    minor_field: z.string().nullable().default(null),
+    gpa_or_score: z.string().nullable().default(null),
+    dates: z.object({ start: z.string().nullable().default(null), end: z.string().nullable().default(null) }).default({}),
+    honors: z.array(z.string()).default([]),
+    relevant_coursework: z.array(z.string()).default([])
   })).default([]),
   projects: z.array(z.object({
-    project_name: z.string().nullable().default(null),
-    description: z.string().nullable().default(null),
-    link: z.string().nullable().default(null),
-    technologies_used: z.array(z.string()).default([])
-  })).default([]),
-  competencies: z.object({
-    hard_skills: z.array(z.string()).default([]),
-    soft_skills: z.array(z.string()).default([]),
-    domain_expertise: z.array(z.string()).default([]),
-    languages_spoken: z.array(z.string()).default([])
-  }).default({}),
-  certifications: z.array(z.object({
     name: z.string().nullable().default(null),
-    issuer: z.string().nullable().default(null),
-    year: z.string().nullable().default(null),
+    description: z.string().nullable().default(null),
+    role_in_project: z.string().nullable().default(null),
+    technologies_used: z.array(z.string()).default([]),
     link: z.string().nullable().default(null)
   })).default([]),
+  competencies: z.object({
+    programming_languages: z.array(z.string()).default([]),
+    frameworks_and_libraries: z.array(z.string()).default([]),
+    tools_and_platforms: z.array(z.string()).default([]),
+    cloud_and_devops: z.array(z.string()).default([]),
+    domain_expertise: z.array(z.string()).default([]),
+    soft_skills: z.array(z.string()).default([])
+  }).default({}),
+  credentials: z.object({
+    certifications: z.array(z.object({
+      name: z.string().nullable().default(null),
+      issuer: z.string().nullable().default(null),
+      year: z.number().nullable().default(null),
+      link: z.string().nullable().default(null)
+    })).default([]),
+    publications_and_patents: z.array(z.object({
+      title: z.string().nullable().default(null),
+      type: z.string().nullable().default(null),
+      date: z.string().nullable().default(null),
+      link: z.string().nullable().default(null)
+    })).default([]),
+    awards: z.array(z.object({
+      title: z.string().nullable().default(null),
+      issuer: z.string().nullable().default(null),
+      year: z.number().nullable().default(null)
+    })).default([])
+  }).default({}),
+  volunteer_and_extracurricular: z.array(z.object({
+    organization: z.string().nullable().default(null),
+    role: z.string().nullable().default(null),
+    description: z.string().nullable().default(null)
+  })).default([]),
+  references: z.array(z.object({
+    name: z.string().nullable().default(null),
+    title: z.string().nullable().default(null),
+    company: z.string().nullable().default(null),
+    contact_info: z.string().nullable().default(null)
+  })).default([]),
   custom_sections: z.array(z.object({
-    section_name: z.string().nullable().default(null),
-    content: z.any()
+    section_title: z.string().nullable().default(null),
+    content: z.string().nullable().default(null)
   })).default([]),
   raw_overflow_bin: z.string().nullable().default(null)
 });
@@ -160,27 +235,46 @@ export function extractWithRegex(text) {
     candidate: {
       name: name,
       contact: {
-        email: emails[0] || null,
-        phone: phones[0] ? phones[0].replace(/\s+/g, ' ').trim() : null,
+        emails: emails[0] ? [emails[0]] : [],
+        phones: phones[0] ? [phones[0].replace(/\s+/g, ' ').trim()] : [],
         location: null,
-        social_links: linkedinUrls[0] ? [{ platform: "LinkedIn", url: linkedinUrls[0] }] : []
+        links: linkedinUrls[0] ? [{ type: "LinkedIn", url: linkedinUrls[0] }] : []
+      },
+      demographics_and_logistics: {
+        willing_to_relocate: null,
+        relocation_destinations: [],
+        open_to_remote: null,
+        visa_status: null,
+        security_clearance: null,
+        languages: [],
+        hobbies_and_interests: []
       }
     },
     professional_narrative: {
-      summary: null,
-      years_of_experience_calculated: null,
-      current_seniority_level: null
+      executive_summary: null,
+      total_years_experience: null,
+      inferred_seniority: null,
+      management_experience: { has_managed_teams: null, max_team_size: null },
+      career_breaks: []
     },
     experience: [],
     education: [],
     projects: [],
     competencies: {
-      hard_skills: [],
-      soft_skills: [],
+      programming_languages: [],
+      frameworks_and_libraries: [],
+      tools_and_platforms: [],
+      cloud_and_devops: [],
       domain_expertise: [],
-      languages_spoken: []
+      soft_skills: []
     },
-    certifications: [],
+    credentials: {
+      certifications: [],
+      publications_and_patents: [],
+      awards: []
+    },
+    volunteer_and_extracurricular: [],
+    references: [],
     custom_sections: [],
     raw_overflow_bin: null
   };
@@ -317,67 +411,137 @@ export async function parseTextWithAi(text) {
   "candidate": {
     "name": "string",
     "contact": {
-      "email": "string | null",
-      "phone": "string | null",
-      "location": { "raw": "string", "parsed_city": "string", "country": "string" },
-      "social_links": [{"platform": "string", "url": "string"}] 
+      "emails": ["string"],
+      "phones": ["string"],
+      "location": {
+        "raw": "string",
+        "city": "string | null",
+        "state_province": "string | null",
+        "country": "string | null",
+        "postal_code": "string | null",
+        "timezone_inferred": "string | null"
+      },
+      "links": [
+        { "type": "LinkedIn | GitHub | Portfolio | Kaggle | Personal | Other", "url": "string" }
+      ]
+    },
+    "demographics_and_logistics": {
+      "willing_to_relocate": "boolean | null",
+      "relocation_destinations": ["string"],
+      "open_to_remote": "boolean | null",
+      "visa_status": "string | null",
+      "security_clearance": "string | null",
+      "languages": [
+        { "language": "string", "proficiency": "Native | Fluent | Conversational | Basic | null" }
+      ],
+      "hobbies_and_interests": ["string"]
     }
   },
   "professional_narrative": {
-    "summary": "string | null",
-    "years_of_experience_calculated": "number | null",
-    "current_seniority_level": "string | null"
+    "executive_summary": "string | null",
+    "total_years_experience": "number | null",
+    "inferred_seniority": "Junior | Mid | Senior | Lead | Executive | null",
+    "management_experience": {
+      "has_managed_teams": "boolean | null",
+      "max_team_size": "number | null"
+    },
+    "career_breaks": [
+      { "reason": "string | null", "dates": { "start": "YYYY-MM | null", "end": "YYYY-MM | null" } }
+    ]
   },
   "experience": [
     {
-      "company": "string",
-      "role": "string",
-      "dates": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD | 'Present'" },
-      "location": "string | null",
+      "company": {
+        "name": "string",
+        "industry": "string | null",
+        "description": "string | null"
+      },
+      "role": {
+        "title": "string",
+        "is_managerial": "boolean | null",
+        "type": "Full-time | Contract | Internship | Freelance | null"
+      },
+      "dates": {
+        "start": "YYYY-MM | null",
+        "end": "YYYY-MM | Present | null",
+        "duration_months": "number | null",
+        "is_current": "boolean | null"
+      },
+      "location": {
+        "raw": "string | null",
+        "is_remote": "boolean | null"
+      },
       "achievements": [
-        { "text": "string", "metric": "string | null", "context": "string" }
-      ],
-      "tech_stack_or_tools": ["string"],
-      "industry_sector": "string | null"
+        {
+          "description": "string",
+          "metrics": ["string (e.g., $1M, 20%)"],
+          "skills_applied": ["string"]
+        }
+      ]
     }
   ],
   "education": [
     {
       "institution": "string",
-      "degree": "string",
-      "field": "string",
-      "year_graduated": "number | null"
+      "degree_type": "string | null",
+      "major_field": "string | null",
+      "minor_field": "string | null",
+      "gpa_or_score": "string | null",
+      "dates": { "start": "YYYY | null", "end": "YYYY | null" },
+      "honors": ["string"],
+      "relevant_coursework": ["string"]
     }
   ],
   "projects": [
     {
-      "project_name": "string",
+      "name": "string",
       "description": "string | null",
-      "link": "string URL | null",
-      "technologies_used": ["string"]
+      "role_in_project": "string | null",
+      "technologies_used": ["string"],
+      "link": "string | null"
     }
   ],
   "competencies": {
-    "hard_skills": ["string"],
-    "soft_skills": ["string"],
+    "programming_languages": ["string"],
+    "frameworks_and_libraries": ["string"],
+    "tools_and_platforms": ["string"],
+    "cloud_and_devops": ["string"],
     "domain_expertise": ["string"],
-    "languages_spoken": ["string"]
+    "soft_skills": ["string"]
   },
-  "certifications": [
+  "credentials": {
+    "certifications": [
+      { "name": "string", "issuer": "string | null", "year": "number | null", "link": "string | null" }
+    ],
+    "publications_and_patents": [
+      { "title": "string", "type": "Publication | Patent | null", "date": "YYYY-MM | null", "link": "string | null" }
+    ],
+    "awards": [
+      { "title": "string", "issuer": "string | null", "year": "number | null" }
+    ]
+  },
+  "volunteer_and_extracurricular": [
+    {
+      "organization": "string",
+      "role": "string | null",
+      "description": "string | null"
+    }
+  ],
+  "references": [
     {
       "name": "string",
-      "issuer": "string | null",
-      "year": "string | null",
-      "link": "string URL | null"
+      "title": "string | null",
+      "company": "string | null",
+      "contact_info": "string | null"
     }
   ],
   "custom_sections": [
     {
-      "section_name": "string (e.g., Volunteer Work, Patents, Publications)",
-      "content": "string or object"
+      "section_title": "string",
+      "content": "string"
     }
   ],
-  "raw_overflow_bin": "string | null (any unparseable text)"
+  "raw_overflow_bin": "string | null"
 }
 
 IMPORTANT RULES:
