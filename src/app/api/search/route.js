@@ -199,7 +199,7 @@ Return strictly valid JSON with these keys:
     }
 
     if (!applications || applications.length === 0) {
-      return NextResponse.json({ results: [], message: 'No candidates in the database yet.', total_candidates: totalCandidatesInDb, matches_found: 0, query });
+      return NextResponse.json({ results: [], message: 'No candidates in the database yet.', extracted_filters: hardFilters, total_candidates: totalCandidatesInDb, matches_found: 0, query });
     }
 
     // ------------------------------------------------------------------------
