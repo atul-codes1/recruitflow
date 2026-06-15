@@ -19,6 +19,7 @@ export default function CandidatesClient({ initialApplications, jobs }) {
   const [applications, setApplications] = useState(initialApplications);
   
   // Filter States
+  const [activeTab, setActiveTab] = useState('inbound'); // 'inbound' | 'pool'
   const [expFilter, setExpFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
@@ -72,6 +73,13 @@ export default function CandidatesClient({ initialApplications, jobs }) {
   // We compute the filtered applications array on the fly during every render.
   // This avoids keeping a duplicate "filteredApplications" state and prevents sync issues.
   const filteredApps = applications.filter((app) => {
+    // 0. Tab Filter
+    if (activeTab === 'inbound') {
+      if (app.job_id === null || app.job_id === undefined) return false;
+    } else {
+      if (app.job_id !== null && app.job_id !== undefined) return false;
+    }
+
     // 1. Experience Filter
     if (expFilter !== 'all') {
       const appExp = app.experience_level || '';
@@ -85,14 +93,9 @@ export default function CandidatesClient({ initialApplications, jobs }) {
       if (dateFilter === 'month' && !isWithinDays(app.created_at, 30)) return false;
     }
 
-    // 3. Role/Job Filter
-    if (roleFilter !== 'all') {
-      if (roleFilter === 'general_pool') {
-        // General Pool candidates are not attached to any specific job (job_id is null)
-        if (app.job_id !== null && app.job_id !== undefined) return false;
-      } else {
-        if (app.job_id !== roleFilter) return false;
-      }
+    // 3. Role/Job Filter (Only applies to inbound tab)
+    if (activeTab === 'inbound' && roleFilter !== 'all') {
+      if (app.job_id !== roleFilter) return false;
     }
 
     // 4. Status Filter (e.g., Unreviewed, Shortlisted)
@@ -105,6 +108,48 @@ export default function CandidatesClient({ initialApplications, jobs }) {
 
   return (
     <div>
+      {/* Tabs Bar */}
+      <div style={{ display: 'flex', gap: '2rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)' }}>
+        <button
+          onClick={() => { setActiveTab('inbound'); setRoleFilter('all'); }}
+          style={{
+            padding: '0.75rem 0',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'inbound' ? '2px solid #6366f1' : '2px solid transparent',
+            color: activeTab === 'inbound' ? '#6366f1' : 'var(--color-surface-400)',
+            fontWeight: activeTab === 'inbound' ? 600 : 500,
+            fontSize: '1rem',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}
+        >
+          <span>💼</span> Job Applicants
+        </button>
+        <button
+          onClick={() => setActiveTab('pool')}
+          style={{
+            padding: '0.75rem 0',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'pool' ? '2px solid #10b981' : '2px solid transparent',
+            color: activeTab === 'pool' ? '#10b981' : 'var(--color-surface-400)',
+            fontWeight: activeTab === 'pool' ? 600 : 500,
+            fontSize: '1rem',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}
+        >
+          <span>🗂️</span> Talent Database
+        </button>
+      </div>
+
       {/* Filters Bar */}
       <div style={{ 
         display: 'flex', 
@@ -185,43 +230,46 @@ export default function CandidatesClient({ initialApplications, jobs }) {
 
         <div style={{ width: '1px', height: '24px', background: 'var(--border-med)', margin: '0 0.5rem' }}></div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span style={{ fontSize: '1.25rem' }}>💼</span>
-          <select 
-            value={roleFilter} 
-            onChange={(e) => setRoleFilter(e.target.value)}
-            style={{ 
-              padding: '0.5rem 2rem 0.5rem 1rem', 
-              borderRadius: '9999px', 
-              background: 'var(--bg-card)', 
-              color: 'var(--color-surface-100)', 
-              border: '1px solid var(--border-med)', 
-              fontSize: '0.875rem', 
-              outline: 'none',
-              cursor: 'pointer',
-              appearance: 'none',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right 0.75rem center',
-              backgroundSize: '1rem',
-              transition: 'all 0.2s ease',
-              maxWidth: '200px',
-              textOverflow: 'ellipsis'
-            }}
-            onMouseOver={(e) => e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.5)'}
-            onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-med)'}
-          >
-            <option value="all">All Roles</option>
-            <option value="general_pool">General Pool (Unassigned)</option>
-            {jobs.map(job => (
-              <option key={job.id} value={job.id}>
-                {job.title}
-              </option>
-            ))}
-          </select>
-        </div>
+        {activeTab === 'inbound' && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '1.25rem' }}>💼</span>
+              <select 
+                value={roleFilter} 
+                onChange={(e) => setRoleFilter(e.target.value)}
+                style={{ 
+                  padding: '0.5rem 2rem 0.5rem 1rem', 
+                  borderRadius: '9999px', 
+                  background: 'var(--bg-card)', 
+                  color: 'var(--color-surface-100)', 
+                  border: '1px solid var(--border-med)', 
+                  fontSize: '0.875rem', 
+                  outline: 'none',
+                  cursor: 'pointer',
+                  appearance: 'none',
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 0.75rem center',
+                  backgroundSize: '1rem',
+                  transition: 'all 0.2s ease',
+                  maxWidth: '200px',
+                  textOverflow: 'ellipsis'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.5)'}
+                onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-med)'}
+              >
+                <option value="all">All Roles</option>
+                {jobs.map(job => (
+                  <option key={job.id} value={job.id}>
+                    {job.title}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div style={{ width: '1px', height: '24px', background: 'var(--border-med)', margin: '0 0.5rem' }}></div>
+            <div style={{ width: '1px', height: '24px', background: 'var(--border-med)', margin: '0 0.5rem' }}></div>
+          </>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <span style={{ fontSize: '1.25rem' }}>🏷️</span>
