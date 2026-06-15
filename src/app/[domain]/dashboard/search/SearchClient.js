@@ -57,6 +57,7 @@ export default function SearchClient() {
         total_candidates: data.total_candidates, // Total resumes in DB
         matches_found: data.matches_found,       // How many passed the AI threshold
         query: data.query,
+        extracted_filters: data.extracted_filters || null
       });
     } catch (err) {
       setError('Network error. Please check your connection.');
@@ -148,6 +149,45 @@ export default function SearchClient() {
           </div>
         </div>
       </form>
+
+      {/* Extracted AI Filters UI (The "Transparent Resdex" View) */}
+      {meta?.extracted_filters && !loading && !error && (
+        <div style={{ marginBottom: '2rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, marginRight: '0.5rem' }}>
+            AI Extracted Strict Filters:
+          </span>
+          
+          {meta.extracted_filters.experience_min !== null && (
+            <div style={{ padding: '0.25rem 0.75rem', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '9999px', fontSize: '0.8125rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              <span>⏱️</span> Min Experience: {meta.extracted_filters.experience_min}+ Years
+            </div>
+          )}
+          
+          {meta.extracted_filters.locations && meta.extracted_filters.locations.length > 0 && (
+            <div style={{ padding: '0.25rem 0.75rem', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '9999px', fontSize: '0.8125rem', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              <span>📍</span> Locations: {meta.extracted_filters.locations.join(', ')}
+            </div>
+          )}
+          
+          {meta.extracted_filters.degrees && meta.extracted_filters.degrees.length > 0 && (
+            <div style={{ padding: '0.25rem 0.75rem', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '9999px', fontSize: '0.8125rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              <span>🎓</span> Degrees: {meta.extracted_filters.degrees.join(', ')}
+            </div>
+          )}
+
+          {meta.extracted_filters.must_have_skills && meta.extracted_filters.must_have_skills.length > 0 && (
+            <div style={{ padding: '0.25rem 0.75rem', background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '9999px', fontSize: '0.8125rem', color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              <span>⚙️</span> Skills: {meta.extracted_filters.must_have_skills.join(', ')}
+            </div>
+          )}
+
+          {Object.values(meta.extracted_filters).every(v => v === null || (Array.isArray(v) && v.length === 0)) && (
+             <div style={{ padding: '0.25rem 0.75rem', background: 'var(--bg-subtle)', border: '1px solid var(--border-light)', borderRadius: '9999px', fontSize: '0.8125rem', color: 'var(--color-surface-400)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+               <span>🤖</span> Semantic Reasoning Only
+             </div>
+          )}
+        </div>
+      )}
 
       {/* Example Queries */}
       {!results && !loading && !error && (

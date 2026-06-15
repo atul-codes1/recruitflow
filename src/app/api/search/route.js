@@ -368,6 +368,7 @@ ${JSON.stringify(candidateContext, null, 2)}
     return NextResponse.json({
       results: finalResults,
       query,
+      extracted_filters: hardFilters,
       total_candidates: totalCandidatesInDb,
       matches_found: finalResults.length,
     });
