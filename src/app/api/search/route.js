@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -132,8 +132,10 @@ Return strictly valid JSON with these keys:
     let isVectorSearch = false;
     let totalCandidatesInDb = 0;
 
+    const supabaseAdmin = createAdminClient();
+
     // Get total count for UI stats
-    const { count } = await supabase.from('applications').select('*', { count: 'exact', head: true });
+    const { count } = await supabaseAdmin.from('applications').select('*', { count: 'exact', head: true });
     totalCandidatesInDb = count || 0;
 
     if (queryEmbedding) {
@@ -141,7 +143,7 @@ Return strictly valid JSON with these keys:
       // Calls the pgvector RPC function. The threshold is extremely low (0.1) because 
       // we don't trust vector cosine similarity to make the final decision. We just want 
       // the top 200 vaguely relevant people, and we will let the LLM decide the actual winners.
-      const { data: matchedApps, error: matchErr } = await supabase.rpc('match_applications', {
+      const { data: matchedApps, error: matchErr } = await supabaseAdmin.rpc('match_applications', {
         query_embedding: queryEmbedding,
         match_threshold: 0.1, 
         match_count: 200
@@ -149,7 +151,7 @@ Return strictly valid JSON with these keys:
       
       if (!matchErr && matchedApps && matchedApps.length > 0) {
         const matchedIds = matchedApps.map(m => m.id);
-        const { data: appsWithRaw } = await supabase
+        const { data: appsWithRaw } = await supabaseAdmin
           .from('applications')
           .select('id, candidate_name, candidate_email, candidate_phone, experience_level, experience_years, skills, parsed_data, status, resume_filename, drive_web_url, job_id, created_at, recruiter_id')
           .in('id', matchedIds);
@@ -168,7 +170,7 @@ Return strictly valid JSON with these keys:
     // NOTE: This will fail if the DB grows larger than the Gemini Context Window (approx ~3,000 resumes).
     if (!isVectorSearch || applications.length === 0) {
       console.log(`[Search] Falling back to standard Context-Window search without vectors...`);
-      const { data: appsWithRaw, error: errWithRaw } = await supabase
+      const { data: appsWithRaw, error: errWithRaw } = await supabaseAdmin
         .from('applications')
         .select('id, candidate_name, candidate_email, candidate_phone, experience_level, experience_years, skills, parsed_data, status, resume_filename, drive_web_url, job_id, created_at, recruiter_id')
         .order('created_at', { ascending: false });
@@ -182,7 +184,7 @@ Return strictly valid JSON with these keys:
     // ------------------------------------------------------------------------
     // STEP 4: ENFORCE ROLE-BASED ACCESS CONTROL (RBAC)
     // ------------------------------------------------------------------------
-    // Important Security Step: The `supabase` client above is a generic service role client, 
+    // Important Security Step: The `supabaseAdmin` client above is a generic service role client, 
     // so it bypassed RLS. We must manually filter the candidates based on the logged-in user.
     // Option B Implementation: Recruiters can ONLY search candidates they personally sourced.
     const serverSupabase = await createClient();
@@ -240,7 +242,7 @@ Return strictly valid JSON with these keys:
     }
 
     // Step 5.5: Fetch jobs for UI mapping
-    const { data: jobs } = await supabase.from('jobs').select('id, title, company');
+    const { data: jobs } = await supabaseAdmin.from('jobs').select('id, title, company');
     const jobMap = {};
     (jobs || []).forEach(j => { jobMap[j.id] = j; });
 
