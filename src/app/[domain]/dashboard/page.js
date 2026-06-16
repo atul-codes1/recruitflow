@@ -176,7 +176,7 @@ export default async function DashboardPage() {
                     <tr key={app.id}>
                       <td>
                         <div style={{ fontWeight: 500, color: 'var(--color-surface-100)' }}>
-                          {app.parsed_data?.candidate?.name || app.candidate_name || 'Anonymous Applicant'}
+                          {app.candidate_name || app.parsed_data?.candidate?.name || 'Anonymous Applicant'}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--color-surface-400)' }}>
                           {app.candidate_email}
@@ -184,9 +184,9 @@ export default async function DashboardPage() {
                       </td>
                       <td>
                         <div style={{ fontWeight: 500 }}>{job?.title || 'Unknown Job'}</div>
-                        {(app.parsed_data?.professional_narrative?.years_of_experience_calculated !== undefined && app.parsed_data?.professional_narrative?.years_of_experience_calculated !== null) && (
+                        {(app.experience_years !== null && app.experience_years !== undefined) && (
                           <div className="flex items-center text-xs text-indigo-400 mt-1">
-                            {app.parsed_data.professional_narrative.years_of_experience_calculated} yrs exp
+                            {app.experience_years} yrs exp
                           </div>
                         )}
                       </td>

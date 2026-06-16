@@ -142,6 +142,16 @@ export async function POST(request) {
             experience_level: experienceLevel,
             experience_years: existingApp.experience_years,
             skills: existingApp.skills,
+            // New flat searchable columns — cloned so search works immediately
+            current_title:   existingApp.current_title   || '',
+            current_company: existingApp.current_company || '',
+            city:            existingApp.city            || '',
+            state:           existingApp.state           || '',
+            metro_region:    existingApp.metro_region    || '',
+            degrees:         existingApp.degrees         || [],
+            degree_level:    existingApp.degree_level    || '',
+            seniority:       existingApp.seniority       || '',
+            summary:         existingApp.summary         || '',
             parsed_data: existingApp.parsed_data,
             raw_text: existingApp.raw_text,
             embedding: existingApp.embedding,
@@ -151,6 +161,7 @@ export async function POST(request) {
           })
           .select()
           .single();
+
           
         if (cloneError) {
           console.error('[Apply] Clone Insert Error:', cloneError);

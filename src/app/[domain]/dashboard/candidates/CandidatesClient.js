@@ -375,7 +375,7 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                       <div style={{ fontWeight: 600, color: 'var(--color-surface-100)', fontSize: '0.875rem', letterSpacing: '0.01em', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: app.status === 'hired' ? '#10b981' : app.status === 'rejected' ? '#ef4444' : '#6366f1' }}></div>
-                          {app.parsed_data?.candidate?.name || app.candidate_name || 'Anonymous Applicant'}
+                          {app.candidate_name || app.parsed_data?.candidate?.name || 'Anonymous Applicant'}
                         </div>
                         
                         {/* Dynamic AI Status Indicator. Will show while QStash is processing the resume. */}
@@ -392,14 +392,14 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                     {/* COLUMN: Phone */}
                     <td>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-surface-300)', display: 'flex', alignItems: 'center', gap: '0.375rem', whiteSpace: 'nowrap' }}>
-                        <span style={{ opacity: 0.7 }}>📱</span> {(app.parsed_data?.candidate?.contact?.phone || app.candidate_phone || 'N/A').replace(/\n/g, '').trim()}
+                        <span style={{ opacity: 0.7 }}>📱</span> {(app.candidate_phone || app.parsed_data?.candidate?.contact?.phone || 'N/A').replace(/\n/g, '').trim()}
                       </div>
                     </td>
                     
                     {/* COLUMN: Email */}
                     <td>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-surface-300)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                        <span style={{ opacity: 0.7 }}>📧</span> {app.parsed_data?.candidate?.contact?.email || app.candidate_email || 'N/A'}
+                        <span style={{ opacity: 0.7 }}>📧</span> {app.candidate_email || app.parsed_data?.candidate?.contact?.email || 'N/A'}
                       </div>
                     </td>
                     {/* COLUMN: Experience Validation */}
@@ -413,7 +413,7 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                         )}
                         
                         {/* AI-calculated total years of experience. We show this to let recruiters spot liars instantly. */}
-                        {(app.parsed_data?.professional_narrative?.years_of_experience_calculated !== null && app.parsed_data?.professional_narrative?.years_of_experience_calculated !== undefined) && (
+                        {(app.experience_years !== null && app.experience_years !== undefined) && (
                           <div style={{ 
                             padding: '0.125rem 0.375rem', 
                             borderRadius: '4px', 
@@ -426,7 +426,7 @@ export default function CandidatesClient({ initialApplications, jobs }) {
                             border: '1px solid rgba(99, 102, 241, 0.2)', 
                             width: 'fit-content' 
                           }}>
-                            <span style={{ color: '#818cf8' }}>✨</span> AI: {app.parsed_data.professional_narrative.years_of_experience_calculated} yrs
+                            <span style={{ color: '#818cf8' }}>✨</span> {app.experience_years} yrs
                           </div>
                         )}
                       </div>

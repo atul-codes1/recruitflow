@@ -2,27 +2,22 @@
  * ============================================================================
  * UPSTASH QSTASH WORKER ROUTE (ASYNC RESUME PROCESSING)
  * ============================================================================
- * 
- * This is the core "Brain" of the enterprise architecture. Because Vercel has a 
- * strict 10-second timeout on Free Tier APIs, we cannot parse resumes synchronously.
- * 
+ *
  * Flow:
- * 1. User uploads resume to `api/apply`.
- * 2. `api/apply` saves the file to Google Drive and publishes a message to Upstash QStash.
- * 3. QStash HTTP calls this Worker Route in the background (bypassing user wait times).
- * 4. This worker downloads the file, extracts text, runs OCR if needed, extracts JSON using Groq/Gemini, 
- *    generates a 768-D Vector Embedding, and saves it all to the Supabase Database.
- * 
- * Security:
- * The `verifySignatureAppRouter` ensures that ONLY Upstash can call this endpoint.
- * Hackers cannot trigger this route manually.
+ * 1. User uploads resume → api/apply (or agent/sync) saves to Drive + pushes to QStash.
+ * 2. QStash calls this worker in the background (no Vercel timeout pressure).
+ * 3. Worker: downloads file → extracts text → OCR if needed →
+ *    AI parses flat JSON → server-side post-processing → saves to DB.
+ *
+ * Security: Only Upstash QStash can call this endpoint.
  */
 
 import { NextResponse } from 'next/server';
-import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 import { createAdminClient } from '@/lib/supabase/admin';
 import { downloadFromGoogleDrive } from '@/lib/gdrive';
 import { parseTextWithAi, performOcrWithGemini, extractWithRegex } from '@/lib/parser';
+import { normalizeCity, getMetroRegion } from '@/lib/locations';
+import { normalizeDegreeArray } from '@/lib/degrees';
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 
@@ -30,46 +25,93 @@ import mammoth from 'mammoth';
  * The main handler function executed by Upstash QStash.
  * 
  * NOTE: We do not use the standard `export async function POST(request)` syntax here
- * because we need to wrap the handler with `@upstash/qstash/nextjs` verifySignatureAppRouter
- * to ensure cryptographic security. However, in this implementation, we are exporting the raw handler.
- * If you add `verifySignatureAppRouter`, wrap it like: `export const POST = verifySignatureAppRouter(handler);`
- * 
- * @param {Request} request - The incoming HTTP request from Upstash QStash.
- * @returns {NextResponse} JSON response indicating success or forcing a retry (500).
+// ============================================================================
+// UTILITIES
+// ============================================================================
+
+/**
+ * Parses a "YYYY-MM" date string into a JS Date object.
+ * Returns null if parsing fails.
  */
+function parseJobDate(dateStr) {
+  if (!dateStr || dateStr.toLowerCase() === 'present') return null;
+  const match = dateStr.match(/^(\d{4})(?:-(\d{2}))?/);
+  if (!match) return null;
+  const year  = parseInt(match[1], 10);
+  const month = parseInt(match[2] || '1', 10) - 1;
+  const d = new Date(year, month, 1);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Calculates total professional experience in years from job entries.
+ * Uses JavaScript Date arithmetic — no AI math needed.
+ * Handles overlapping roles by capping end dates at the current date.
+ *
+ * @param {Array} jobs - Array of { start, end } date strings
+ * @returns {number|null} - e.g. 3.5 years, or null if no dates found
+ */
+function calculateExperienceYears(jobs) {
+  if (!Array.isArray(jobs) || jobs.length === 0) return null;
+
+  let totalMonths = 0;
+  const now = new Date();
+
+  for (const job of jobs) {
+    if (!job.start) continue;
+    const start = parseJobDate(job.start);
+    if (!start || start > now) continue;
+
+    const endRaw = job.end?.toLowerCase();
+    const end = (endRaw === 'present' || !endRaw) ? now : parseJobDate(job.end);
+    if (!end || end < start) continue;
+
+    const months = (end.getFullYear() - start.getFullYear()) * 12
+                 + (end.getMonth() - start.getMonth());
+    totalMonths += Math.max(0, months);
+  }
+
+  if (totalMonths === 0) return null;
+  // Round to 1 decimal place: 38 months → 3.2 years
+  return Math.round((totalMonths / 12) * 10) / 10;
+}
+
+// ============================================================================
+// MAIN HANDLER
+// ============================================================================
 async function handler(request) {
   let reqBody = {};
   try {
     reqBody = await request.json();
-    const { applicationId, drive_file_id, local_path, fileName, ext, storage_config } = reqBody;
+    const { applicationId, drive_file_id, fileName, ext, storage_config } = reqBody;
 
     console.log(`[Worker] Started processing application ${applicationId}...`);
 
     const supabaseAdmin = createAdminClient();
 
-    let buffer;
-
     // ------------------------------------------------------------------------
     // 1. FILE RETRIEVAL
     // ------------------------------------------------------------------------
-    // Download the raw file into a Buffer so we can parse it locally.
+    let buffer;
     if (drive_file_id) {
-       console.log(`[Worker] Downloading ${fileName} from Google Drive...`);
-       buffer = await downloadFromGoogleDrive(drive_file_id, storage_config || {});
+      console.log(`[Worker] Downloading ${fileName} from Google Drive...`);
+      buffer = await downloadFromGoogleDrive(drive_file_id, storage_config || {});
     } else {
-       console.error('[Worker] No drive_file_id provided. The company has no BYOS integration connected.');
-       await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: 'Upload failed due to missing Cloud Storage Integration.' }).eq('id', applicationId);
-       return NextResponse.json({ error: 'Missing drive_file_id' }, { status: 400 });
+      console.error('[Worker] No drive_file_id provided.');
+      await supabaseAdmin.from('applications')
+        .update({ ai_status: 'failed', notes: 'Missing Cloud Storage Integration.' })
+        .eq('id', applicationId);
+      return NextResponse.json({ error: 'Missing drive_file_id' }, { status: 400 });
     }
 
     // ------------------------------------------------------------------------
-    // 2. TEXT EXTRACTION & OCR PIPELINE
+    // 2. TEXT EXTRACTION + OCR PIPELINE
     // ------------------------------------------------------------------------
     let text = '';
-    const mimeType = ext === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const mimeType = ext === 'pdf'
+      ? 'application/pdf'
+      : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-    // Step 2A: Standard Text Extraction
-    // Fast, cheap extraction for digitally native PDFs and Word Docs.
     if (ext === 'pdf') {
       const pdfData = await pdfParse(buffer);
       text = pdfData.text || '';
@@ -78,119 +120,161 @@ async function handler(request) {
       text = docxData.value || '';
     }
 
-    // Step 2B: Optical Character Recognition (OCR) Fallback
-    // If the PDF is an image scan (e.g., printed and scanned), `pdfParse` will return empty text.
-    // In this case, we route the raw file directly to Gemini 1.5 Flash Vision to "read" the image.
     if (text.trim().length < 50) {
-      console.log(`[Worker] Detected Scanned Document. Routing to Gemini OCR...`);
+      console.log('[Worker] Scanned document detected → Gemini OCR...');
       text = await performOcrWithGemini(buffer, mimeType);
     }
 
-    // Edge Case: If OCR completely fails (often due to Google API rate limits or 503 errors)
     if (text.trim().length < 5) {
-      console.warn(`[Worker] OCR Extraction totally failed (likely 503). Forcing Upstash Retry.`);
-      await supabaseAdmin.from('applications').update({
-        candidate_name: 'Retrying... (Google Overloaded)'
-      }).eq('id', applicationId);
-      // By throwing a 500 status code, Upstash QStash catches it and automatically retries with exponential backoff!
-      return NextResponse.json({ error: 'OCR Failed, forcing retry' }, { status: 500 }); 
+      console.warn('[Worker] OCR failed entirely → forcing QStash retry');
+      await supabaseAdmin.from('applications')
+        .update({ candidate_name: 'Retrying... (OCR Overloaded)' })
+        .eq('id', applicationId);
+      return NextResponse.json({ error: 'OCR Failed' }, { status: 500 });
     }
 
     // ------------------------------------------------------------------------
-    // 3. AI STRUCTURED PARSING (JSON EXTRACTION)
+    // 3. AI STRUCTURED PARSING
     // ------------------------------------------------------------------------
-    // Pass the raw unstructured text into the LLM multiplexer (Gemini/Groq) to get structured JSON.
-    console.log(`[Worker] Extracting JSON via Gemini...`);
+    console.log(`[Worker] Running AI parsing for ${fileName}...`);
     let parsedData = await parseTextWithAi(text);
+    let parseMethod;
+
     if (parsedData) {
-      parsedData.parse_method = 'ai_multiplexer';
+      parseMethod = 'ai_flat';
     } else {
-      // Fallback: If LLMs are down, fallback to regex-based extraction to prevent catastrophic failure
+      console.warn('[Worker] AI failed → using regex fallback');
       parsedData = extractWithRegex(text);
-      parsedData.parse_method = 'regex';
+      parseMethod = 'regex';
     }
-    parsedData.parsed_at = new Date().toISOString();
+
+    parsedData.parse_method = parseMethod;
+    parsedData.parsed_at    = new Date().toISOString();
 
     // ------------------------------------------------------------------------
-    // 4. GENERATE VECTOR EMBEDDINGS (SEMANTIC SEARCH)
+    // 4. SERVER-SIDE POST-PROCESSING
     // ------------------------------------------------------------------------
-    // We synthesize the most important parsed data into a dense paragraph.
-    // This paragraph is then converted into a 768-Dimension vector so recruiters can use semantic search 
-    // (e.g. "Find me someone who knows React and lives in Texas").
-    const role = parsedData?.experience?.[0]?.role?.title || parsedData?.professional_narrative?.inferred_seniority || '';
-    const exp = parsedData?.professional_narrative?.total_years_experience || 0;
-    const skillsArr = [
-      ...(parsedData?.competencies?.programming_languages || []),
-      ...(parsedData?.competencies?.frameworks_and_libraries || []),
-      ...(parsedData?.competencies?.tools_and_platforms || []),
-      ...(parsedData?.competencies?.cloud_and_devops || []),
-      ...(parsedData?.competencies?.domain_expertise || []),
-      ...(parsedData?.competencies?.soft_skills || [])
-    ];
-    const edu = (parsedData?.education || []).map(e => e.degree_type).join(', ');
-    const sum = parsedData?.professional_narrative?.summary || '';
-    const location = parsedData?.candidate?.contact?.location?.raw || '';
-    
-    // Synthesized contextual paragraph
-    const embeddingText = `Role: ${role}. Experience: ${exp} years. Location: ${location}. Education: ${edu}. Skills: ${skillsArr.join(', ')}. Summary: ${sum}`.trim();
-    
+
+    // 4a. Experience calculation (JavaScript date math, not AI)
+    const experienceYears = calculateExperienceYears(parsedData.jobs || []);
+    console.log(`[Worker] Calculated experience: ${experienceYears} years`);
+
+    // 4b. City normalization + metro region assignment
+    const rawCity       = parsedData.city || '';
+    const normalizedCity = normalizeCity(rawCity);
+    const metroRegion    = getMetroRegion(normalizedCity) || '';
+    console.log(`[Worker] Location: "${rawCity}" → "${normalizedCity}" (${metroRegion || 'no metro'})`);
+
+    // 4c. Degree normalization
+    const rawDegrees     = parsedData.degrees || [];
+    const degreeObjects  = normalizeDegreeArray(rawDegrees);
+    const normalizedDegrees = degreeObjects.map(d => d.canonical);
+    // Use the highest level among all degrees for the degree_level column
+    const levelPriority = ['Doctorate', 'Postgraduate', 'Undergraduate', 'Diploma', 'Vocational', 'Other'];
+    const degreeLevel   = degreeObjects.reduce((best, d) => {
+      const bi = levelPriority.indexOf(best);
+      const di = levelPriority.indexOf(d.level);
+      return di < bi ? d.level : best;
+    }, 'Other');
+
+    // 4d. Skill deduplication and cleanup
+    const rawSkills    = parsedData.skills || [];
+    const uniqueSkills = [...new Set(rawSkills.map(s => s.trim()).filter(s => s.length > 0))];
+
+    // 4e. Current title & company (from first job if AI didn't extract directly)
+    const currentTitle   = parsedData.current_title   || parsedData.jobs?.[0]?.title   || '';
+    const currentCompany = parsedData.current_company || parsedData.jobs?.[0]?.company || '';
+
+    // ------------------------------------------------------------------------
+    // 5. VECTOR EMBEDDING (768-D Semantic Search)
+    // ------------------------------------------------------------------------
+    const embeddingText = [
+      currentTitle && `Role: ${currentTitle}`,
+      experienceYears !== null && `Experience: ${experienceYears} years`,
+      normalizedCity && `Location: ${normalizedCity}`,
+      metroRegion && `Metro: ${metroRegion}`,
+      normalizedDegrees.length && `Education: ${normalizedDegrees.join(', ')}`,
+      uniqueSkills.length && `Skills: ${uniqueSkills.join(', ')}`,
+      parsedData.summary && `Summary: ${parsedData.summary}`,
+    ].filter(Boolean).join('. ');
+
     let embedding = null;
     if (embeddingText.length > 20) {
-       try {
-         const apiKey = process.env.GEMINI_API_KEY;
-         if (apiKey) {
-           console.log(`[Worker] Generating Vector Embedding for ${fileName}...`);
-           const embRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key=${apiKey}`, {
-             method: 'POST',
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({
-               model: 'models/gemini-embedding-2',
-               content: { parts: [{ text: embeddingText }] },
-               outputDimensionality: 768
-             })
-           });
-           if (embRes.ok) {
-             const embData = await embRes.json();
-             embedding = embData.embedding?.values || null;
-             console.log(`[Worker] Successfully generated 768-D Vector.`);
-           }
-         }
-       } catch(e) {
-         console.error('[Worker] Embedding generation error:', e.message);
-       }
+      try {
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (apiKey) {
+          console.log(`[Worker] Generating 768-D vector embedding...`);
+          const embRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: 'models/gemini-embedding-2',
+                content: { parts: [{ text: embeddingText }] },
+                outputDimensionality: 768,
+              }),
+            }
+          );
+          if (embRes.ok) {
+            const embData = await embRes.json();
+            embedding = embData.embedding?.values || null;
+            console.log('[Worker] Embedding generated successfully.');
+          }
+        }
+      } catch (e) {
+        console.error('[Worker] Embedding error:', e.message);
+      }
     }
 
     // ------------------------------------------------------------------------
-    // 5. FINAL DATABASE COMMIT
+    // 6. FINAL DATABASE COMMIT
     // ------------------------------------------------------------------------
-    // Update the database. This instantly refreshes the recruiter's UI (via Supabase Realtime/Polling).
-    console.log(`[Worker] AI parsing complete. Updating database...`);
+    console.log(`[Worker] Committing to database for application ${applicationId}...`);
+
     await supabaseAdmin.from('applications').update({
-      candidate_name: parsedData?.candidate?.name || 'Unknown Candidate',
-      candidate_email: parsedData?.candidate?.contact?.emails?.[0] || '',
-      candidate_phone: parsedData?.candidate?.contact?.phones?.[0] || '',
-      experience_years: parsedData?.professional_narrative?.total_years_experience || null,
-      skills: skillsArr,
+      // ── Flat identity columns (already existed, now properly populated) ──
+      candidate_name:  parsedData.name || 'Unknown Candidate',
+      candidate_email: parsedData.emails?.[0] || '',
+      candidate_phone: parsedData.phones?.[0] || '',
+      experience_years: experienceYears,
+
+      // ── NEW flat searchable columns ──
+      current_title:   currentTitle,
+      current_company: currentCompany,
+      city:            normalizedCity,
+      state:           parsedData.state || '',
+      metro_region:    metroRegion,
+      degrees:         normalizedDegrees,
+      degree_level:    degreeLevel,
+      seniority:       parsedData.seniority || '',
+      summary:         parsedData.summary || '',
+      skills:          uniqueSkills,
+
+      // ── Full parsed JSON blob (for profile detail view) ──
       parsed_data: parsedData,
-      raw_text: text,
-      ai_status: 'completed',
-      ...(embedding ? { embedding } : {}) // Only spread embedding if it successfully generated
+      raw_text:    text,
+      ai_status:   'completed',
+
+      // ── Vector embedding (for semantic search) ──
+      ...(embedding ? { embedding } : {}),
     }).eq('id', applicationId);
 
-    console.log(`[Worker] Successfully completed processing for Application ${applicationId}`);
+    console.log(`[Worker] ✅ Successfully processed application ${applicationId}`);
     return NextResponse.json({ success: true });
 
   } catch (err) {
-    console.error('[Worker] Fatal error in worker:', err);
-    
+    console.error('[Worker] Fatal error:', err);
     try {
       if (reqBody.applicationId) {
-        await supabaseAdmin.from('applications').update({ ai_status: 'failed', notes: err.message }).eq('id', reqBody.applicationId);
+        const supabaseAdmin = createAdminClient();
+        await supabaseAdmin.from('applications')
+          .update({ ai_status: 'failed', notes: err.message })
+          .eq('id', reqBody.applicationId);
       }
-    } catch(dbErr) {
+    } catch (dbErr) {
       console.error('[Worker] Failed to update DB status:', dbErr);
     }
-    
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
