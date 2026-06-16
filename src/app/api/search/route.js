@@ -84,10 +84,10 @@ export async function POST(request) {
     // Gemini extracts hard filters with metro region & seniority awareness.
     // --------------------------------------------------------------------------
     console.log('[Search] Step 1: Interpreting query...');
-    const interpreterPrompt = `You are a search query interpreter for an Indian recruitment system (like Naukri Resdex).
-Extract filters from this query: "${query}"
+    const interpreterPrompt = `You are a search query interpreter for an Indian recruitment platform (like Naukri Resdex).
+Extract HARD FILTERS from this query: "${query}"
 
-Return ONLY valid JSON with these keys:
+Return ONLY valid JSON:
 {
   "experience_min": number | null,
   "experience_max": number | null,
@@ -98,15 +98,34 @@ Return ONLY valid JSON with these keys:
   "job_title_hint": "string" | null
 }
 
-RULES:
-- "Delhi NCR" → locations: ["Delhi NCR"] (keep metro name as-is, system will expand it)
-- "Bangalore" → locations: ["Bangalore"]
-- "fresher" → seniority: "Fresher", experience_min: 0, experience_max: 1
-- "5+ years" → experience_min: 5
-- "3-5 years" → experience_min: 3, experience_max: 5
-- For degree keywords like "engineering", "postgraduate", "MBA", "MCA" → put them in degrees[]
-- skills: only EXPLICIT skills, not inferred
-- If not specified, return null (not empty array)`;
+STRICT RULES:
+
+1. LOCATIONS: Keep metro names as-is. "Delhi NCR" → ["Delhi NCR"]. "Bangalore" → ["Bangalore"]. "near Mumbai" → ["Mumbai"]. If no location, return null.
+
+2. EXPERIENCE: "5+ years" → experience_min: 5. "3-5 years" → min:3, max:5. "fresher" → min:0, max:1, seniority:"Fresher". "senior" → seniority:"Senior".
+
+3. DEGREES: Only when explicitly about education. "MBA" → ["MBA"]. "engineering degree" → ["engineering"]. "postgraduate" → ["postgraduate"]. If not mentioned, null.
+
+4. must_have_skills — CRITICAL RULE: ONLY put EXPLICIT TECHNICAL SKILLS here.
+   ✅ CORRECT → put in must_have_skills: Java, Python, React, AWS, SQL, Node.js, Kubernetes, Salesforce, SAP
+   ❌ WRONG → do NOT put here: recruitment, marketing, sales, finance, HR, operations, healthcare, legal, teaching, consulting, accounting
+   Domain words, industries, and job functions are NOT skills. They go in job_title_hint instead.
+   If the query says "experience in recruitment" → job_title_hint: "recruiter", must_have_skills: null
+   If the query says "marketing background" → job_title_hint: "marketing", must_have_skills: null
+   If the query says "Java developer" → must_have_skills: ["Java"], job_title_hint: "developer"
+
+5. job_title_hint: A short phrase describing the role/domain. Used by AI reasoning, not hard filter.
+
+6. If something is ambiguous or not clearly specified, return null — do NOT guess.
+
+EXAMPLES:
+"candidate with experience in recruitment" → {job_title_hint: "recruiter", must_have_skills: null, seniority: null}
+"Java developer with 5+ years in Delhi" → {must_have_skills: ["Java"], experience_min: 5, locations: ["Delhi"], job_title_hint: "developer"}
+"MBA fresher from Mumbai" → {degrees: ["MBA"], seniority: "Fresher", locations: ["Mumbai"]}
+"senior React frontend engineer" → {must_have_skills: ["React"], seniority: "Senior", job_title_hint: "frontend engineer"}
+"someone who knows Python and machine learning" → {must_have_skills: ["Python", "machine learning"], job_title_hint: "data scientist"}
+"HR manager with 8 years" → {job_title_hint: "HR manager", experience_min: 8, must_have_skills: null}`;
+
 
     let hardFilters = {
       experience_min: null,
@@ -364,19 +383,29 @@ RULES:
     const TOP_N = 50;
     const candidatesForAI = applications.slice(0, TOP_N);
 
-    const candidateContext = candidatesForAI.map(app => ({
-      id:             app.id,
-      name:           app.candidate_name || 'Unknown',
-      current_role:   app.current_title  || app.parsed_data?.experience?.[0]?.role?.title || 'Unknown',
-      current_company:app.current_company|| app.parsed_data?.experience?.[0]?.company?.name || '',
-      experience_years: app.experience_years ?? null,
-      seniority:      app.seniority || '',
-      skills:         app.skills || [],
-      location:       [app.city, app.metro_region].filter(Boolean).join(', ') ||
-                      app.parsed_data?.candidate?.contact?.location?.raw || 'Unknown',
-      degrees:        app.degrees || [],
-      summary:        app.summary || app.parsed_data?.professional_narrative?.executive_summary || '',
-    }));
+    const candidateContext = candidatesForAI.map(app => {
+      // Build past job titles list from new flat jobs array OR old parsed_data experience
+      const pastJobs = (
+        app.parsed_data?.jobs ||                    // new flat schema
+        app.parsed_data?.experience ||              // old schema
+        []
+      ).map(j => j.title || j.role?.title || '').filter(Boolean).slice(0, 5);
+
+      return {
+        id:              app.id,
+        name:            app.candidate_name || 'Unknown',
+        current_role:    app.current_title  || app.parsed_data?.experience?.[0]?.role?.title || 'Unknown',
+        current_company: app.current_company|| app.parsed_data?.experience?.[0]?.company?.name || '',
+        past_job_titles: pastJobs,
+        experience_years: app.experience_years ?? null,
+        seniority:       app.seniority || '',
+        skills:          app.skills || [],
+        location:        [app.city, app.metro_region].filter(Boolean).join(', ') ||
+                         app.parsed_data?.candidate?.contact?.location?.raw || 'Unknown',
+        degrees:         app.degrees || [],
+        summary:         app.summary || app.parsed_data?.professional_narrative?.executive_summary || '',
+      };
+    });
 
     // --------------------------------------------------------------------------
     // STEP 7: GEMINI REASONING — Score & explain each candidate
@@ -386,21 +415,25 @@ RULES:
 
     const aiPrompt = `You are an expert technical recruiter and headhunter working for an Indian company.
 The hiring manager has entered this search query: "${query}"
+${hardFilters.job_title_hint ? `\nThe system interpreted this as looking for: "${hardFilters.job_title_hint}"\n` : ''}
+Below is a JSON array of candidates from our database. Your job is to SCORE and RANK them based on how well they match the search query.
 
-Below is a JSON array of pre-filtered candidates from our database.
-These candidates already passed hard filters (experience, location, skills). Your job is to SCORE and RANK them.
+HOW TO SCORE:
+- Read the query carefully. If it says "experience in recruitment", look at their current_role, summary, and skills for words like recruiter, talent acquisition, HR, staffing, headhunting, sourcing.
+- If the query mentions a domain/industry (recruitment, marketing, finance, sales, healthcare), match on their job title and summary — NOT just skill tags.
+- If the query mentions specific technologies (Java, React, Python), match strictly on skills.
+- Give credit for related/synonymous terms: "recruitment" = "talent acquisition" = "HR recruiter" = "staffing".
 
-Read each candidate's actual role, skills, location, and experience.
-Give a score from 1 to 100. Be precise and discriminating:
-- 90-100: Perfect match — role AND skills AND experience all align
-- 70-89: Strong match — 2 of 3 major criteria align
-- 50-69: Partial match — only 1 criteria aligns strongly
-- Below 30: Weak/tangential match
+SCORING GUIDE:
+- 90-100: Their current role AND summary clearly match the query
+- 70-89: Their past experience or skills match the query domain
+- 50-69: Partial match — adjacent field or similar domain
+- Below 30: Not relevant
 
 Return ONLY a valid JSON array. Each object must have exactly:
 - "id": (exact candidate ID from the list below)
 - "score": (number 1-100)
-- "reason": (1 sentence: specific skills/role that make them fit OR not fit)
+- "reason": (1 sentence: what specifically in their profile matches — mention their actual role/skill)
 
 Exclude scores below 20. Sort from highest to lowest score.
 
