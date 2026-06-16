@@ -138,24 +138,55 @@ EXAMPLES:
     };
 
     try {
-      const model = await getFlashModel(apiKey);
-      const interpRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: interpreterPrompt }] }],
-            generationConfig: { temperature: 0.1, responseMimeType: 'application/json' },
-          }),
+      const groqKey = process.env.GROQ_API_KEY;
+      let interpOk = false;
+
+      // Try Groq first for speed and to save Gemini rate limits
+      if (groqKey) {
+        try {
+          const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'llama-3.3-70b-versatile',
+              messages: [{ role: 'user', content: interpreterPrompt }],
+              temperature: 0.1,
+              response_format: { type: 'json_object' },
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const text = data.choices[0].message.content;
+            const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            hardFilters = { ...hardFilters, ...JSON.parse(cleaned) };
+            interpOk = true;
+          }
+        } catch (e) {
+          console.warn('[Search] Groq interpreter failed, falling back to Gemini');
         }
-      );
-      if (interpRes.ok) {
-        const data = await interpRes.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-          hardFilters = { ...hardFilters, ...JSON.parse(cleaned) };
+      }
+
+      // Fallback to Gemini
+      if (!interpOk) {
+        const model = await getFlashModel(apiKey);
+        const interpRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: interpreterPrompt }] }],
+              generationConfig: { temperature: 0.1, responseMimeType: 'application/json' },
+            }),
+          }
+        );
+        if (interpRes.ok) {
+          const data = await interpRes.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            hardFilters = { ...hardFilters, ...JSON.parse(cleaned) };
+          }
         }
       }
     } catch (e) {
@@ -430,7 +461,7 @@ SCORING GUIDE:
 - 50-69: Partial match — adjacent field or similar domain
 - Below 30: Not relevant
 
-Return ONLY a valid JSON array. Each object must have exactly:
+Return ONLY a valid JSON object with a "rankings" array. Each object in the array must have exactly:
 - "id": (exact candidate ID from the list below)
 - "score": (number 1-100)
 - "reason": (1 sentence: what specifically in their profile matches — mention their actual role/skill)
@@ -440,35 +471,76 @@ Exclude scores below 20. Sort from highest to lowest score.
 Candidates:
 ${JSON.stringify(candidateContext, null, 2)}`;
 
-    const aiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: aiPrompt }] }],
-          generationConfig: { temperature: 0.1, responseMimeType: 'application/json' },
-        }),
-      }
-    );
+    const groqKey = process.env.GROQ_API_KEY;
+    let aiRankings = null;
 
-    if (!aiRes.ok) {
-      console.error('[Search] Gemini reasoning failed:', await aiRes.text());
-      return NextResponse.json(
-        { error: 'AI reasoning step failed. Please try again.' },
-        { status: 500 }
-      );
+    // Try Groq First
+    if (groqKey) {
+      try {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [{ role: 'user', content: aiPrompt }],
+            temperature: 0.1,
+            response_format: { type: 'json_object' },
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.choices[0].message.content;
+          const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+          const parsed = JSON.parse(cleaned);
+          // Groq json_object might return { rankings: [...] } if forced to return object
+          aiRankings = Array.isArray(parsed) ? parsed : (parsed.candidates || parsed.rankings || Object.values(parsed)[0] || []);
+        }
+      } catch (e) {
+        console.warn('[Search] Groq reasoning failed, falling back to Gemini:', e.message);
+      }
     }
 
-    const aiData   = await aiRes.json();
-    const aiText   = aiData.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-    let aiRankings = [];
+    // Fallback to Gemini
+    if (!aiRankings) {
+      const targetModel = await getFlashModel(apiKey);
+      console.log(`[Search] Step 7: Reasoning over ${candidatesForAI.length} pre-filtered candidates with ${targetModel}...`);
 
-    try {
-      aiRankings = JSON.parse(aiText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
-    } catch (e) {
-      console.error('[Search] Failed to parse AI rankings JSON:', e);
-      return NextResponse.json({ error: 'AI returned invalid JSON.' }, { status: 500 });
+      const aiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: aiPrompt }] }],
+            generationConfig: { temperature: 0.1, responseMimeType: 'application/json' },
+          }),
+        }
+      );
+
+      if (!aiRes.ok) {
+        const errText = await aiRes.text();
+        console.error('[Search] Gemini reasoning failed:', errText);
+        if (aiRes.status === 429 || errText.includes('Quota exceeded') || errText.includes('RESOURCE_EXHAUSTED')) {
+          return NextResponse.json(
+            { error: 'AI Rate Limit Exceeded (Google Free Tier 15 requests/min). Please wait 60 seconds and try again.' },
+            { status: 429 }
+          );
+        }
+        return NextResponse.json(
+          { error: 'AI reasoning step failed. Please try again.' },
+          { status: 500 }
+        );
+      }
+
+      const aiData   = await aiRes.json();
+      const aiText   = aiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+      try {
+        const parsed = JSON.parse(aiText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+        aiRankings = Array.isArray(parsed) ? parsed : (parsed.candidates || parsed.rankings || Object.values(parsed)[0] || []);
+      } catch (e) {
+        console.error('[Search] Failed to parse Gemini AI rankings JSON:', e);
+        return NextResponse.json({ error: 'AI returned invalid JSON.' }, { status: 500 });
+      }
     }
 
     // --------------------------------------------------------------------------
