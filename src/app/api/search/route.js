@@ -174,7 +174,7 @@ RULES:
 
     let dbQuery = supabaseAdmin
       .from('applications')
-      .select('id, candidate_name, candidate_email, candidate_phone, current_title, current_company, city, metro_region, state, experience_years, skills, degrees, degree_level, seniority, summary, parsed_data, status, drive_web_url, job_id, created_at, recruiter_id, ai_status')
+      .select('*')  // Use * so we never fail on missing columns — new columns default to null
       .eq('ai_status', 'completed');
 
     // RBAC: Recruiters only see their own candidates
@@ -182,7 +182,7 @@ RULES:
       dbQuery = dbQuery.eq('recruiter_id', userId);
     }
 
-    // Experience range filter
+    // Experience range filter (experience_years has always existed — safe)
     if (hardFilters.experience_min !== null) {
       dbQuery = dbQuery.gte('experience_years', hardFilters.experience_min);
     }
@@ -190,37 +190,76 @@ RULES:
       dbQuery = dbQuery.lte('experience_years', hardFilters.experience_max);
     }
 
-    // Seniority filter
-    if (hardFilters.seniority) {
-      dbQuery = dbQuery.eq('seniority', hardFilters.seniority);
-    }
-
-    // Skills filter — GIN index, all skills must be present
-    if (hardFilters.must_have_skills?.length > 0) {
-      // Use overlap (has any of) not containment (has all of) to avoid over-filtering
-      dbQuery = dbQuery.overlaps('skills', hardFilters.must_have_skills);
-    }
-
-    // Degree filter — expands shorthand to full degree names
-    if (hardFilters.degrees?.length > 0) {
-      const allDegrees = hardFilters.degrees.flatMap(d => expandDegreeForSearch(d));
-      const uniqueDegrees = [...new Set(allDegrees)];
-      if (uniqueDegrees.length > 0) {
-        dbQuery = dbQuery.overlaps('degrees', uniqueDegrees);
-      }
-    }
-
     const { data: sqlFiltered, error: sqlErr } = await dbQuery.order('created_at', { ascending: false });
 
     if (sqlErr) {
       console.error('[Search] SQL filter error:', sqlErr);
+      // Last-resort fallback: fetch everything and filter in memory
+      console.warn('[Search] Trying unfiltered fallback...');
+      const { data: fallbackData, error: fbErr } = await supabaseAdmin
+        .from('applications')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (fbErr) {
+        return NextResponse.json({ error: 'Database query failed.' }, { status: 500 });
+      }
+      // Apply RBAC manually
+      const fallback = role !== 'admin' && userId
+        ? (fallbackData || []).filter(a => a.recruiter_id === userId)
+        : (fallbackData || []);
       return NextResponse.json({ error: 'Database query failed.' }, { status: 500 });
     }
 
     let applications = sqlFiltered || [];
 
-    // Location filter — done in JS after SQL because Supabase OR across two columns is complex
-    // We expand metro names to city lists and match against city OR metro_region columns
+    // --------------------------------------------------------------------------
+    // JS POST-FILTERS (safe — work even before migration runs)
+    // These use new flat columns when available, fall back to old parsed_data
+    // --------------------------------------------------------------------------
+
+    // Seniority filter
+    if (hardFilters.seniority && applications.length > 0) {
+      const senFiltered = applications.filter(app => {
+        const sen = app.seniority || app.parsed_data?.professional_narrative?.inferred_seniority || '';
+        return sen.toLowerCase() === hardFilters.seniority.toLowerCase();
+      });
+      if (senFiltered.length > 0) applications = senFiltered;
+    }
+
+    // Skills filter (overlap: candidate has at least ONE of the required skills)
+    if (hardFilters.must_have_skills?.length > 0 && applications.length > 0) {
+      const required = hardFilters.must_have_skills.map(s => s.toLowerCase());
+      const skillsFiltered = applications.filter(app => {
+        const skills = (app.skills || []).map(s => s.toLowerCase());
+        // Also check old parsed_data competencies
+        const legacySkills = [
+          ...(app.parsed_data?.competencies?.programming_languages || []),
+          ...(app.parsed_data?.competencies?.frameworks_and_libraries || []),
+          ...(app.parsed_data?.competencies?.tools_and_platforms || []),
+          ...(app.parsed_data?.competencies?.domain_expertise || []),
+        ].map(s => s.toLowerCase());
+        const allSkills = [...new Set([...skills, ...legacySkills])];
+        return required.some(r => allSkills.some(s => s.includes(r)));
+      });
+      if (skillsFiltered.length > 0) applications = skillsFiltered;
+    }
+
+    // Degree filter
+    if (hardFilters.degrees?.length > 0 && applications.length > 0) {
+      const allDegrees = hardFilters.degrees.flatMap(d => expandDegreeForSearch(d)).map(d => d.toLowerCase());
+      const degFiltered = applications.filter(app => {
+        const appDegrees = (app.degrees || []).map(d => d.toLowerCase());
+        // Fallback to old parsed_data education
+        const legacyDegrees = (app.parsed_data?.education || []).map(e =>
+          (e.degree_type || e.degree || '').toLowerCase()
+        );
+        const allAppDegrees = [...new Set([...appDegrees, ...legacyDegrees])];
+        return allDegrees.some(d => allAppDegrees.some(a => a.includes(d) || d.includes(a)));
+      });
+      if (degFiltered.length > 0) applications = degFiltered;
+    }
+
+    // Location filter — JS-based matching against flat city/metro_region + old parsed_data
     if (hardFilters.locations?.length > 0) {
       const expandedCities = hardFilters.locations
         .flatMap(loc => expandLocationForSearch(loc))
@@ -229,16 +268,16 @@ RULES:
       const metroNames = hardFilters.locations.map(l => l.toLowerCase());
 
       const locationFiltered = applications.filter(app => {
-        const city        = (app.city || '').toLowerCase();
-        const metro       = (app.metro_region || '').toLowerCase();
-        const stateVal    = (app.state || '').toLowerCase();
+        const city     = (app.city || '').toLowerCase();
+        const metro    = (app.metro_region || '').toLowerCase();
+        const stateVal = (app.state || '').toLowerCase();
         // Also check old parsed_data for candidates not yet re-processed
-        const legacyCity  = (app.parsed_data?.candidate?.contact?.location?.city || '').toLowerCase();
-        const legacyRaw   = (app.parsed_data?.candidate?.contact?.location?.raw || '').toLowerCase();
+        const legacyCity = (app.parsed_data?.candidate?.contact?.location?.city || '').toLowerCase();
+        const legacyRaw  = (app.parsed_data?.candidate?.contact?.location?.raw || '').toLowerCase();
 
         return (
           expandedCities.some(c => city.includes(c) || legacyCity.includes(c) || legacyRaw.includes(c) || stateVal.includes(c)) ||
-          metroNames.some(m => metro.includes(m))
+          metroNames.some(m => metro.includes(m) || legacyRaw.includes(m))
         );
       });
 
