@@ -241,8 +241,26 @@ Return ONLY valid JSON matching this exact structure. No markdown, no code block
 
 STRICT RULES — follow every rule without exception:
 1. SKILLS — Put ALL skills in ONE flat array. Include: programming languages, frameworks, libraries, tools, platforms, databases, cloud services, methodologies (Agile, Scrum), soft skills, and domain expertise. If a framework implies a language (React → JavaScript), include BOTH. Do NOT categorize. Do NOT leave skills empty if the resume has ANY technical content.
-2. SENIORITY — Infer from job titles and experience. "Software Engineer" with 1 year = Junior. 5 years = Mid. 8+ years = Senior. "Lead" or "Manager" = Lead.
-3. DEGREES — Write full formal names: "B.Tech" → "Bachelor of Technology", "MCA" → "Master of Computer Applications", "MBA" → "Master of Business Administration", "B.Sc" → "Bachelor of Science", "M.Sc" → "Master of Science", "Ph.D" → "Doctor of Philosophy".
+2. SENIORITY — Infer from job titles and experience. "Software Engineer" with 1 year = Junior. 5 years = Mid. 8+ years = Senior. "Lead" or "Manager" = Lead. "VP", "Director", "CTO" = Executive.
+3. DEGREES — CRITICAL RULES:
+   a) ONLY extract degrees from the EDUCATION section of the resume. Do NOT extract from the person's name, their employer name, their skills, or any other section.
+   b) "B.A." in a person's name like "Rahul B.A. Sharma" is NOT a degree. Initials are NOT degrees.
+   c) Write the full formal name of the degree:
+      - "B.Tech" / "BE" / "B.E." / "Bachelor of Engineering" → "Bachelor of Technology"
+      - "M.Tech" / "ME" / "M.E." / "Master of Engineering" → "Master of Technology"
+      - "MCA" / "M.C.A" → "Master of Computer Applications"
+      - "BCA" / "B.C.A" → "Bachelor of Computer Applications"
+      - "MBA" / "M.B.A" → "Master of Business Administration"
+      - "BBA" → "Bachelor of Business Administration"
+      - "B.Sc" / "BSc" → "Bachelor of Science"
+      - "M.Sc" / "MSc" → "Master of Science"
+      - "B.Com" / "BCom" → "Bachelor of Commerce"
+      - "M.Com" / "MCom" → "Master of Commerce"
+      - "BA" / "B.A." (explicitly in Education section as a degree, not as initials) → "Bachelor of Arts"
+      - "MA" / "M.A." → "Master of Arts"
+      - "PhD" / "Ph.D" → "Doctor of Philosophy"
+      - "Diploma" → "Diploma"
+   d) If you are NOT sure something is a degree (because it might be a person's initials or abbreviation), do NOT include it. Empty array [] is better than a wrong degree.
 4. JOB DATES — Format as YYYY-MM. If only year given, use YYYY-01. Current job: end = "present". Order jobs from most recent to oldest.
 5. MISSING DATA — null for strings, [] for arrays. NEVER hallucinate.
 6. JSON SAFETY — No raw newlines or unescaped quotes inside string values. Output must be parseable by JSON.parse().
