@@ -144,7 +144,7 @@ async function getAvailableGeminiModels(apiKey) {
   if (cachedGeminiModels) return cachedGeminiModels;
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    if (!response.ok) return ['gemini-1.5-flash-latest'];
+    if (!response.ok) return ['gemini-2.5-flash'];
     const data = await response.json();
     const models = data.models
       .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
@@ -154,10 +154,10 @@ async function getAvailableGeminiModels(apiKey) {
       const score = m => m.includes('flash') ? 2 : m.includes('pro') ? 1 : 0;
       return score(b) - score(a);
     });
-    cachedGeminiModels = sorted.length > 0 ? sorted : ['gemini-1.5-flash-latest'];
+    cachedGeminiModels = sorted.length > 0 ? sorted : ['gemini-2.5-flash'];
     return cachedGeminiModels;
   } catch {
-    return ['gemini-1.5-flash-latest'];
+    return ['gemini-2.5-flash'];
   }
 }
 

@@ -52,7 +52,7 @@ async function getFlashModel(apiKey) {
   } catch (e) {
     console.warn('[Search] Could not fetch Gemini model list, using fallback');
   }
-  return 'gemini-1.5-flash-latest';
+  return 'gemini-2.5-flash';
 }
 
 // ============================================================================
