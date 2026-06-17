@@ -88,27 +88,31 @@ export default function HealthClient({ role }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
       {/* ── METRICS COMMAND CENTER ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-        <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 16 }}>
-          <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Processed</h3>
-          <p style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--color-surface-100)', marginTop: '0.5rem' }}>{data.counts.completed || 0}</p>
+      <div className="animate-slide-up stagger-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+        <div className="card hover-lift" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', marginBottom: '1rem' }}>✅</div>
+          <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Total Processed</h3>
+          <p style={{ fontSize: '3rem', fontWeight: 700, color: 'var(--color-surface-100)', marginTop: '0.5rem', lineHeight: 1 }}>{data.counts.completed || 0}</p>
         </div>
-        <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 16 }}>
-          <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>In Queue</h3>
-          <p style={{ fontSize: '2.5rem', fontWeight: 700, color: '#3b82f6', marginTop: '0.5rem' }}>{data.counts.queued || 0}</p>
+        <div className="card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', marginBottom: '1rem' }}>⏳</div>
+          <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>In Queue</h3>
+          <p style={{ fontSize: '3rem', fontWeight: 700, color: '#3b82f6', marginTop: '0.5rem', lineHeight: 1 }}>{data.counts.queued || 0}</p>
         </div>
-        <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 16 }}>
-          <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Uploading</h3>
-          <p style={{ fontSize: '2.5rem', fontWeight: 700, color: '#f59e0b', marginTop: '0.5rem' }}>{data.counts.uploading || 0}</p>
+        <div className="card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', marginBottom: '1rem' }}>☁️</div>
+          <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Uploading</h3>
+          <p style={{ fontSize: '3rem', fontWeight: 700, color: '#f59e0b', marginTop: '0.5rem', lineHeight: 1 }}>{data.counts.uploading || 0}</p>
         </div>
-        <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 16 }}>
-          <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>AI Failures</h3>
-          <p style={{ fontSize: '2.5rem', fontWeight: 700, color: '#ef4444', marginTop: '0.5rem' }}>{data.counts.failed || 0}</p>
+        <div className="card hover-lift" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderColor: data.counts.failed > 0 ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-light)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', marginBottom: '1rem' }}>🛑</div>
+          <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>AI Failures</h3>
+          <p style={{ fontSize: '3rem', fontWeight: 700, color: '#ef4444', marginTop: '0.5rem', lineHeight: 1 }}>{data.counts.failed || 0}</p>
         </div>
       </div>
 
       {/* ── QUEUE MANAGEMENT ACTIONS ── */}
-      <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 16 }}>
+      <div className="card animate-slide-up stagger-2" style={{ padding: '2rem' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-surface-100)', marginBottom: '1rem' }}>Queue Operations</h2>
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           
@@ -155,7 +159,7 @@ export default function HealthClient({ role }) {
       </div>
 
       {/* ── UNIVERSAL API LIMIT TRACKERS ── */}
-      <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 16 }}>
+      <div className="card animate-slide-up stagger-3" style={{ padding: '2rem' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-surface-100)', marginBottom: '1.5rem' }}>Universal API Trackers (Daily Estimates)</h2>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -208,7 +212,7 @@ export default function HealthClient({ role }) {
       </div>
 
       {/* ── INTELLIGENT ERROR LOGS ── */}
-      <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 16 }}>
+      <div className="card animate-slide-up stagger-4" style={{ padding: '2rem' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-surface-100)', marginBottom: '1rem' }}>Intelligent Error Logs (Last 100 Failures)</h2>
         
         {data.errors.length === 0 ? (

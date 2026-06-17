@@ -353,7 +353,7 @@ export default function CandidatesClient({ initialApplications, jobs, currentPag
           </h3>
         </div>
       ) : (
-        <div className="table-container responsive-table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
+        <div className="table-container responsive-table-wrapper animate-slide-up stagger-1" style={{ border: 'none', borderRadius: 0 }}>
           <table className="table table-compact">
             <thead>
               <tr>
@@ -368,10 +368,11 @@ export default function CandidatesClient({ initialApplications, jobs, currentPag
               </tr>
             </thead>
             <tbody>
-              {filteredApps.map(app => {
+              {filteredApps.map((app, index) => {
                 const job = jobs.find(j => j.id === app.job_id);
+                const staggerDelay = `${Math.min(index * 0.05, 0.5)}s`;
                 return (
-                  <tr key={app.id} className="hover-row">
+                  <tr key={app.id} className="animate-slide-up hover-row" style={{ animationDelay: staggerDelay }}>
                     
                     {/* COLUMN: Candidate Name & AI Processing Status */}
                     <td>
