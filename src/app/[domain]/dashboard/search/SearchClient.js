@@ -120,17 +120,20 @@ function InfoRow({ label, value, icon, copyText, color, isSkills = false, skills
 // MATCH SCORE RING
 // ─────────────────────────────────────────────────────────────────────────────
 function MatchScore({ score }) {
-  const color = score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : '#94a3b8';
-  const bg    = score >= 80 ? 'rgba(34,197,94,0.1)' : score >= 60 ? 'rgba(245,158,11,0.1)' : 'rgba(148,163,184,0.08)';
-  const border = score >= 80 ? 'rgba(34,197,94,0.35)' : score >= 60 ? 'rgba(245,158,11,0.35)' : 'rgba(148,163,184,0.2)';
+  const color  = score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : '#94a3b8';
+  const bg     = score >= 80 ? 'rgba(34,197,94,0.1)'   : score >= 60 ? 'rgba(245,158,11,0.1)'   : 'rgba(148,163,184,0.08)';
+  const border = score >= 80 ? 'rgba(34,197,94,0.35)'  : score >= 60 ? 'rgba(245,158,11,0.35)'  : 'rgba(148,163,184,0.2)';
   return (
     <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-      padding: '10px 14px', borderRadius: 10,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+      padding: '10px 16px', borderRadius: 10,
       background: bg, border: `1px solid ${border}`,
     }}>
-      <span style={{ fontSize: '1.4rem', fontWeight: 800, color, lineHeight: 1 }}>{score}</span>
-      <span style={{ fontSize: '0.6rem', fontWeight: 700, color, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Match</span>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+        <span style={{ fontSize: '1.5rem', fontWeight: 800, color, lineHeight: 1 }}>{score}</span>
+        <span style={{ fontSize: '0.75rem', fontWeight: 700, color, opacity: 0.7 }}>/100</span>
+      </div>
+      <span style={{ fontSize: '0.58rem', fontWeight: 700, color, letterSpacing: '0.07em', textTransform: 'uppercase' }}>AI Score</span>
     </div>
   );
 }
@@ -193,18 +196,7 @@ function CandidateCard({ result, rank }) {
             {result.candidate_name || 'Unnamed Candidate'}
           </h3>
 
-          {/* Seniority badge */}
-          {result.seniority && (
-            <span style={{
-              fontSize: '0.65rem', padding: '2px 8px', borderRadius: 20,
-              background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)',
-              color: '#c4b5fd', fontWeight: 700, letterSpacing: '0.04em',
-            }}>
-              {result.seniority}
-            </span>
-          )}
-
-          {/* Applied for — only for real job applicants */}
+          {/* Applied for — only for real job applicants, no seniority badge */}
           {hasRealJob && (
             <span style={{
               marginLeft: 'auto', fontSize: '0.68rem',
@@ -391,20 +383,6 @@ function CandidateCard({ result, rank }) {
         </div>
       </div>
 
-      {/* ── Footer strip ──────────────────────────────────────────────────── */}
-      <div style={{
-        padding: '6px 18px',
-        borderTop: '1px solid var(--border-light)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'rgba(255,255,255,0.01)',
-      }}>
-        <span style={{ fontSize: '0.68rem', color: 'var(--color-surface-600)' }}>
-          {result.applied_at ? `Applied: ${new Date(result.applied_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}` : ''}
-        </span>
-        <span style={{ fontSize: '0.68rem', color: 'var(--color-surface-600)', fontStyle: 'italic' }}>
-          AI Score: {result.score}/100
-        </span>
-      </div>
     </div>
   );
 }
@@ -775,17 +753,47 @@ export default function SearchClient() {
               ))}
             </FilterSection>
 
-            {/* Location */}
+            {/* Location — free text for any Indian city/state */}
             <FilterSection title="Location">
-              {LOCATION_OPTIONS.map(l => (
-                <CheckOption key={l} label={l} checked={selectedLocations.includes(l)}
-                  onChange={() => toggle(setSelectedLocations, l)} />
-              ))}
+              <input
+                type="text"
+                value={selectedLocations[0] || ''}
+                onChange={e => {
+                  const val = e.target.value.trim();
+                  setSelectedLocations(val ? [val] : []);
+                }}
+                placeholder="e.g. Delhi NCR, Pune, Kerala…"
+                style={{
+                  width: '100%', padding: '6px 9px', borderRadius: 6, fontSize: '0.78rem',
+                  background: 'var(--bg-subtle)', border: '1px solid var(--border-med)',
+                  color: 'var(--color-surface-100)', outline: 'none',
+                  fontFamily: 'var(--font-sans)',
+                }}
+              />
+              <p style={{ margin: '5px 0 0', fontSize: '0.68rem', color: 'var(--color-surface-600)', lineHeight: 1.4 }}>
+                Type any city, state, or region in India
+              </p>
             </FilterSection>
 
-            {/* Education */}
-            <FilterSection title="Education Level" defaultOpen={false}>
-              {DEGREE_LEVELS.map(d => (
+            {/* Education — specific Indian degrees */}
+            <FilterSection title="Qualification" defaultOpen={false}>
+              {[
+                'B.Tech / B.E.',
+                'M.Tech / M.E.',
+                'MBA / PGDM',
+                'MCA',
+                'BCA',
+                'B.Sc',
+                'M.Sc',
+                'B.Com',
+                'M.Com',
+                'BA',
+                'MA',
+                'LLB / LLM',
+                'MBBS / MD',
+                'Diploma',
+                'PhD / Doctorate',
+              ].map(d => (
                 <CheckOption key={d} label={d} checked={selectedDegreeLevel.includes(d)}
                   onChange={() => toggle(setSelectedDegreeLevel, d)} />
               ))}

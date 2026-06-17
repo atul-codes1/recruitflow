@@ -331,13 +331,12 @@ EXAMPLES:
         );
       });
 
-      // Only apply if it doesn't wipe everyone out (safety net)
-      if (locationFiltered.length > 0) {
-        applications = locationFiltered;
-      } else {
-        console.log('[Search] Location filter returned 0 — skipping to avoid empty results');
-      }
+      // Apply strictly — if location was explicitly requested, honour it
+      // (Don't silently fall back to all candidates — that's what caused other-city candidates to appear)
+      applications = locationFiltered;
+      console.log(`[Search] Location filter → ${applications.length} candidates matching ${hardFilters.locations.join(', ')}`);
     }
+
 
     if (applications.length === 0) {
       return NextResponse.json({
