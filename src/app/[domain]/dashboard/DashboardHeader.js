@@ -37,6 +37,7 @@ export default function DashboardHeader({ domain, profile }) {
     { href: `/${domain}/dashboard/search`, icon: '🧠', label: 'AI Search' },
     { href: `/${domain}/dashboard/candidates`, icon: '👥', label: 'Candidates' },
     { href: `/${domain}/dashboard/jobs`, icon: '💼', label: 'Jobs' },
+    { href: `/${domain}/dashboard/health`, icon: '⚙️', label: 'System Health' },
   ];
 
   const getInitials = (name) => {
