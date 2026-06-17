@@ -557,6 +557,8 @@ ${JSON.stringify(candidateContext, null, 2)}`;
         .join(', ') ||
         app.parsed_data?.candidate?.contact?.location?.raw ||
         app.parsed_data?.candidate?.contact?.location?.city || '';
+      
+      const prevExp = app.parsed_data?.experience?.[1] || app.parsed_data?.jobs?.[1] || null;
 
       finalResults.push({
         id:              app.id,
@@ -569,13 +571,16 @@ ${JSON.stringify(candidateContext, null, 2)}`;
         candidate_phone: app.candidate_phone || app.parsed_data?.candidate?.contact?.phones?.[0] || '',
 
         // Professional profile
-        current_title:   app.current_title   || app.parsed_data?.experience?.[0]?.role?.title || '',
-        current_company: app.current_company || app.parsed_data?.experience?.[0]?.company?.name || '',
-        experience_years:app.experience_years ?? app.parsed_data?.professional_narrative?.total_years_experience ?? null,
-        seniority:       app.seniority        || '',
-        skills:          app.skills           || [],
-        degrees:         app.degrees          || [],
-        summary:         app.summary          || app.parsed_data?.professional_narrative?.executive_summary || '',
+        current_title:    app.current_title   || app.parsed_data?.experience?.[0]?.role?.title || '',
+        current_company:  app.current_company || app.parsed_data?.experience?.[0]?.company?.name || '',
+        previous_title:   prevExp?.role?.title   || prevExp?.title   || '',
+        previous_company: prevExp?.company?.name || prevExp?.company || '',
+        experience_years: app.experience_years ?? app.parsed_data?.professional_narrative?.total_years_experience ?? null,
+        seniority:        app.seniority        || '',
+        skills:           app.skills           || [],
+        degrees:          app.degrees          || [],
+        degree_level:     app.degree_level     || '',
+        summary:          app.summary          || app.parsed_data?.professional_narrative?.executive_summary || '',
 
         // Location (enriched)
         location:        locationDisplay,
