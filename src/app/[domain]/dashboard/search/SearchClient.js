@@ -139,8 +139,6 @@ function MatchScore({ score }) {
 // CANDIDATE CARD — Naukri-inspired two-panel layout
 // ─────────────────────────────────────────────────────────────────────────────
 function CandidateCard({ result, rank }) {
-  const [phoneVisible, setPhoneVisible] = useState(false);
-
   const expLabel = result.experience_years != null
     ? `${result.experience_years} yr${result.experience_years !== 1 ? 's' : ''}`
     : null;
@@ -156,6 +154,9 @@ function CandidateCard({ result, rank }) {
   const phone = result.candidate_phone
     ? result.candidate_phone.toString().replace(/\n|\r/g, '').trim()
     : null;
+
+  // Only show "Applied for" when candidate came through a real job posting
+  const hasRealJob = result.job_title && result.job_title !== 'Unknown Job' && result.job_title.trim() !== '';
 
   return (
     <div
@@ -203,34 +204,14 @@ function CandidateCard({ result, rank }) {
             </span>
           )}
 
-          {/* Applied for */}
-          <span style={{
-            marginLeft: 'auto', fontSize: '0.68rem',
-            color: 'var(--color-surface-500)',
-            display: 'flex', alignItems: 'center', gap: 4,
-          }}>
-            Applied for: <strong style={{ color: 'var(--color-surface-400)' }}>{result.job_title}</strong>
-          </span>
-        </div>
-
-        {/* Quick stats row */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 8 }}>
-          {expLabel && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.775rem', color: 'var(--color-surface-400)' }}>
-              <Icon d={icons.clock} size={13} />
-              <strong style={{ color: 'var(--color-surface-200)' }}>{expLabel}</strong> experience
-            </span>
-          )}
-          {result.location && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.775rem', color: 'var(--color-surface-400)' }}>
-              <Icon d={icons.pin} size={13} />
-              {result.location}
-            </span>
-          )}
-          {result.degree_level && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.775rem', color: 'var(--color-surface-400)' }}>
-              <Icon d={icons.grad} size={13} />
-              {result.degree_level}
+          {/* Applied for — only for real job applicants */}
+          {hasRealJob && (
+            <span style={{
+              marginLeft: 'auto', fontSize: '0.68rem',
+              color: 'var(--color-surface-500)',
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              Applied for: <strong style={{ color: 'var(--color-surface-400)' }}>{result.job_title}</strong>
             </span>
           )}
         </div>
@@ -286,45 +267,17 @@ function CandidateCard({ result, rank }) {
             </div>
           )}
 
-          {/* Mobile row — hidden by default like Naukri */}
+          {/* Mobile row — always visible */}
           {phone && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 6 }}>
               <div style={{ width: 105, flexShrink: 0, fontSize: '0.75rem', color: 'var(--color-surface-500)', fontWeight: 600 }}>
                 Mobile
               </div>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
-                {phoneVisible ? (
-                  <>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--color-surface-200)', fontWeight: 600 }}>
-                      {phone}
-                    </span>
-                    <CopyBtn text={phone} label="Mobile" />
-                    <button
-                      onClick={() => setPhoneVisible(false)}
-                      style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        color: 'var(--color-surface-500)', fontSize: '0.68rem', padding: 0,
-                        display: 'flex', alignItems: 'center', gap: 3,
-                      }}
-                    >
-                      <Icon d={icons.eyeOff} size={11} /> Hide
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => setPhoneVisible(true)}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 5,
-                      padding: '3px 10px', borderRadius: 5,
-                      background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)',
-                      color: '#93c5fd', fontSize: '0.75rem', fontWeight: 600,
-                      cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                    }}
-                  >
-                    <Icon d={icons.eye} size={12} />
-                    Show Mobile Number
-                  </button>
-                )}
+                <span style={{ fontSize: '0.8rem', color: 'var(--color-surface-200)', fontWeight: 600 }}>
+                  {phone}
+                </span>
+                <CopyBtn text={phone} label="Mobile" />
               </div>
             </div>
           )}
@@ -367,6 +320,23 @@ function CandidateCard({ result, rank }) {
           display: 'flex', flexDirection: 'column', gap: 10,
           background: 'rgba(255,255,255,0.01)',
         }}>
+          {/* AI-Calculated Experience — shown before score */}
+          {expLabel && (
+            <div style={{
+              padding: '8px 10px', borderRadius: 8,
+              background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.18)',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '0.58rem', fontWeight: 700, color: '#6ee7b7', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 3 }}>
+                ✦ AI Calculated
+              </div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#34d399', lineHeight: 1 }}>
+                {expLabel}
+              </div>
+              <div style={{ fontSize: '0.62rem', color: 'rgba(110,231,183,0.7)', marginTop: 2 }}>experience</div>
+            </div>
+          )}
+
           {/* Match Score */}
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <MatchScore score={result.score} />
@@ -389,8 +359,8 @@ function CandidateCard({ result, rank }) {
             </div>
           )}
 
-          {/* Action buttons */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 'auto' }}>
+          {/* View Resume — no copy buttons below */}
+          <div style={{ marginTop: 'auto' }}>
             {result.drive_web_url ? (
               <a
                 href={result.drive_web_url}
@@ -401,7 +371,7 @@ function CandidateCard({ result, rank }) {
                   padding: '7px 10px', borderRadius: 7,
                   background: 'linear-gradient(135deg,#4f46e5,#6366f1)',
                   color: '#fff', fontSize: '0.775rem', fontWeight: 600,
-                  textDecoration: 'none', transition: 'opacity 0.15s',
+                  textDecoration: 'none',
                   boxShadow: '0 2px 8px rgba(99,102,241,0.35)',
                 }}
               >
@@ -417,16 +387,6 @@ function CandidateCard({ result, rank }) {
                 No Resume Link
               </div>
             )}
-
-            {/* Quick copy row */}
-            <div style={{ display: 'flex', gap: 5 }}>
-              {result.candidate_email && (
-                <CopyBtn text={result.candidate_email} label="Email" />
-              )}
-              {phone && phoneVisible && (
-                <CopyBtn text={phone} label="Phone" />
-              )}
-            </div>
           </div>
         </div>
       </div>
