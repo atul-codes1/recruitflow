@@ -102,8 +102,6 @@ export default function DashboardHeader({ domain, profile }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
           <div className="hide-on-mobile" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
             
-            <ThemeToggle />
-
             <div 
               style={{ position: 'relative' }}
               onMouseEnter={() => setIsDropdownOpen(true)}
@@ -220,7 +218,10 @@ export default function DashboardHeader({ domain, profile }) {
                     >
                       <span style={{ fontSize: '1rem' }}>🌐</span> Public Portal ↗
                     </Link>
-                    <div style={{ height: '1px', background: 'var(--border-light)' }}></div>
+                    <div style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-light)' }}>
+                      <span style={{ fontSize: '0.875rem', color: 'var(--color-surface-300)' }}>Theme</span>
+                      <ThemeToggle />
+                    </div>
                     <button 
                       onClick={handleLogout}
                       style={{
