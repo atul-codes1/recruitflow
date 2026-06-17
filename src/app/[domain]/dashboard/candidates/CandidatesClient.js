@@ -479,7 +479,7 @@ export default function CandidatesClient({ initialApplications, jobs, currentPag
             </tbody>
           </table>
         </div>
-      </div>
+      )}
 
       {/* ── Pagination Controls ── */}
       {totalPages > 1 && (
