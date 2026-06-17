@@ -24,8 +24,8 @@ export default async function CandidatesPage({ searchParams }) {
 
   const { data: jobs } = await supabase.from('jobs').select('*').order('created_at', { ascending: false });
 
-  // Pagination config
-  const page = parseInt(searchParams?.page || '1', 10);
+  const resolvedSearchParams = await searchParams;
+  const page = parseInt(resolvedSearchParams?.page || '1', 10);
   const PAGE_SIZE = 50;
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
