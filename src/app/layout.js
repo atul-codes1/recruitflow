@@ -32,7 +32,6 @@ export default function RootLayout({ children }) {
     <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
       <body style={{ fontFamily: 'var(--font-inter, var(--font-sans))' }}>
         {children}
-        <ThemeToggle />
       </body>
     </html>
   );

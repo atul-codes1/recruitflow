@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import ThemeToggle from '@/components/ThemeToggle';
 
 /**
  * Dashboard Navigation Header (Client Component)
@@ -100,6 +101,9 @@ export default function DashboardHeader({ domain, profile }) {
         {/* Right Side */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
           <div className="hide-on-mobile" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            
+            <ThemeToggle />
+
             <div 
               style={{ position: 'relative' }}
               onMouseEnter={() => setIsDropdownOpen(true)}
@@ -336,6 +340,9 @@ export default function DashboardHeader({ domain, profile }) {
           <Link href={`/boards/${domain}`} target="_blank" className="btn-secondary" style={{ justifyContent: 'center' }}>
             Public Portal ↗
           </Link>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.5rem' }}>
+            <ThemeToggle />
+          </div>
         </div>
       )}
     </header>

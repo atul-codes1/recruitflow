@@ -44,32 +44,67 @@ export default function ThemeToggle() {
   if (!mounted) return null;
 
   return (
-    <button
-      onClick={toggleTheme}
+    <div 
       style={{
-        position: 'fixed',
-        bottom: '2rem',
-        right: '2rem',
-        width: '3.5rem',
-        height: '3.5rem',
-        borderRadius: '50%',
-        background: 'var(--color-surface-800)',
-        border: '1px solid var(--color-surface-700)',
-        color: 'var(--color-surface-100)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '1.5rem',
-        cursor: 'pointer',
-        zIndex: 9999,
-        boxShadow: 'var(--shadow-glass)',
-        transition: 'all 0.2s',
+        background: 'var(--bg-subtle)',
+        borderRadius: '9999px',
+        padding: '0.25rem',
+        gap: '0.25rem',
+        border: '1px solid var(--border-light)'
       }}
-      className="hover-row"
       aria-label="Toggle Light/Dark Theme"
       title="Toggle Light/Dark Theme"
     >
-      {theme === 'dark' ? '☀️' : '🌙'}
-    </button>
+      <button
+        onClick={() => {
+          setTheme('light');
+          localStorage.setItem('theme', 'light');
+          document.documentElement.setAttribute('data-theme', 'light');
+        }}
+        style={{
+          background: theme === 'light' ? 'var(--color-surface-100)' : 'transparent',
+          color: theme === 'light' ? 'var(--color-surface-900)' : 'var(--color-surface-400)',
+          border: 'none',
+          borderRadius: '50%',
+          width: '28px',
+          height: '28px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          boxShadow: theme === 'light' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
+          fontSize: '0.875rem'
+        }}
+      >
+        ☀️
+      </button>
+      <button
+        onClick={() => {
+          setTheme('dark');
+          localStorage.setItem('theme', 'dark');
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }}
+        style={{
+          background: theme === 'dark' ? 'var(--color-surface-800)' : 'transparent',
+          color: theme === 'dark' ? 'var(--color-surface-100)' : 'var(--color-surface-400)',
+          border: 'none',
+          borderRadius: '50%',
+          width: '28px',
+          height: '28px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          boxShadow: theme === 'dark' ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
+          fontSize: '0.875rem'
+        }}
+      >
+        🌙
+      </button>
+    </div>
   );
 }
