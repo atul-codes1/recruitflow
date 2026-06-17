@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import StatusSelect from './StatusSelect';
 
 /**
@@ -12,7 +13,9 @@ import StatusSelect from './StatusSelect';
  * @param {Array} initialApplications - The initial array of candidate applications fetched from the server.
  * @param {Array} jobs - The list of jobs belonging to the current workspace (used for the Role filter).
  */
-export default function CandidatesClient({ initialApplications, jobs }) {
+export default function CandidatesClient({ initialApplications, jobs, currentPage = 1, totalPages = 1 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   // ------------------------------------------------------------------------
   // STATE MANAGEMENT
   // ------------------------------------------------------------------------
@@ -475,6 +478,53 @@ export default function CandidatesClient({ initialApplications, jobs }) {
               })}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* ── Pagination Controls ── */}
+      {totalPages > 1 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 24px', borderTop: '1px solid var(--border-light)',
+          background: 'var(--bg-card)', borderBottomLeftRadius: 16, borderBottomRightRadius: 16
+        }}>
+          <span style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)' }}>
+            Showing page <strong style={{ color: 'var(--color-surface-100)' }}>{currentPage}</strong> of <strong style={{ color: 'var(--color-surface-100)' }}>{totalPages}</strong>
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              disabled={currentPage <= 1}
+              onClick={() => {
+                const params = new URLSearchParams(searchParams);
+                params.set('page', currentPage - 1);
+                router.push(`?${params.toString()}`);
+              }}
+              style={{
+                padding: '8px 16px', borderRadius: 8, fontSize: '0.875rem', fontWeight: 600,
+                background: 'var(--bg-subtle)', border: '1px solid var(--border-med)',
+                color: currentPage <= 1 ? 'var(--color-surface-500)' : 'var(--color-surface-200)',
+                cursor: currentPage <= 1 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Previous
+            </button>
+            <button
+              disabled={currentPage >= totalPages}
+              onClick={() => {
+                const params = new URLSearchParams(searchParams);
+                params.set('page', currentPage + 1);
+                router.push(`?${params.toString()}`);
+              }}
+              style={{
+                padding: '8px 16px', borderRadius: 8, fontSize: '0.875rem', fontWeight: 600,
+                background: 'var(--bg-subtle)', border: '1px solid var(--border-med)',
+                color: currentPage >= totalPages ? 'var(--color-surface-500)' : 'var(--color-surface-200)',
+                cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>

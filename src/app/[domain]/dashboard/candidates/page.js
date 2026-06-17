@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
  * - Admin: Fetches ALL applications in the workspace.
  * - Recruiter: Fetches ONLY applications where `recruiter_id === user.id`.
  */
-export default async function CandidatesPage() {
+export default async function CandidatesPage({ searchParams }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
@@ -24,13 +24,24 @@ export default async function CandidatesPage() {
 
   const { data: jobs } = await supabase.from('jobs').select('*').order('created_at', { ascending: false });
 
-  let appQuery = supabase.from('applications').select('*').order('created_at', { ascending: false });
+  // Pagination config
+  const page = parseInt(searchParams?.page || '1', 10);
+  const PAGE_SIZE = 50;
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
+  let appQuery = supabase
+    .from('applications')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(from, to);
 
   if (role !== 'admin') {
     appQuery = appQuery.eq('recruiter_id', user.id);
   }
 
-  const { data: applications } = await appQuery;
+  const { data: applications, count: totalCount } = await appQuery;
+  const totalPages = Math.ceil((totalCount || 0) / PAGE_SIZE);
 
   const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -56,7 +67,12 @@ export default async function CandidatesPage() {
             </h3>
           </div>
         ) : (
-          <CandidatesClient initialApplications={applications} jobs={jobs || []} />
+          <CandidatesClient 
+            initialApplications={applications} 
+            jobs={jobs || []} 
+            currentPage={page}
+            totalPages={totalPages}
+          />
         )}
       </div>
     </div>
