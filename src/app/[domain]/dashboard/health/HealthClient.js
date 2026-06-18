@@ -251,7 +251,7 @@ export default function HealthClient({ role }) {
                     {errGroup.examples.map(ex => (
                       <li key={ex.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
                         <span style={{ color: 'var(--color-surface-200)' }}>📄 {ex.resume_filename || 'Unknown File'}</span>
-                        <span style={{ color: 'var(--color-surface-500)' }}>{new Date(ex.updated_at).toLocaleTimeString()}</span>
+                        <span style={{ color: 'var(--color-surface-500)' }}>{new Date(ex.created_at).toLocaleTimeString()}</span>
                       </li>
                     ))}
                   </ul>

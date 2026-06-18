@@ -23,9 +23,9 @@ export async function GET() {
     // 2. Fetch the latest 100 failed error logs
     const { data: errorLogs } = await supabaseAdmin
       .from('applications')
-      .select('id, resume_filename, notes, updated_at')
+      .select('id, resume_filename, notes, created_at')
       .eq('ai_status', 'failed')
-      .order('updated_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(100);
 
     // Group errors by reason for UI categorization
@@ -43,9 +43,9 @@ export async function GET() {
         } else if (note.includes('429')) {
           category = 'Soft Fail (Rate Limit)';
           cleanNote = 'AI Provider Rate Limit (429)';
-        } else if (note.includes('password') || note.includes('corrupt') || note.includes('read pdf')) {
+        } else if (note.includes('corrupt') || note.includes('read pdf') || note.includes('extract text')) {
           category = 'Hard Fail (Bad File)';
-          cleanNote = 'Unreadable or Password Protected PDF';
+          cleanNote = 'Unreadable or Corrupted Document';
         }
 
         if (!groupedErrors[cleanNote]) {
