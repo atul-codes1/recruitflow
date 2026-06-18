@@ -88,74 +88,93 @@ export default function HealthClient({ role }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
       {/* ── METRICS COMMAND CENTER ── */}
-      <div className="animate-slide-up stagger-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
-        <div className="card hover-lift" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', marginBottom: '1rem' }}>✅</div>
-          <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Total Processed</h3>
-          <p style={{ fontSize: '3rem', fontWeight: 700, color: 'var(--color-surface-100)', marginTop: '0.5rem', lineHeight: 1 }}>{data.counts.completed || 0}</p>
+      <div className="animate-slide-up stagger-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+        
+        {/* Total Processed */}
+        <div className="card hover-lift" style={{ padding: '1.25rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', background: 'linear-gradient(to bottom right, var(--bg-card), var(--bg-subtle))' }}>
+          <div>
+            <h3 style={{ fontSize: '0.75rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, marginBottom: '0.25rem' }}>Total Processed</h3>
+            <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-surface-100)', lineHeight: 1 }}>{data.counts.completed || 0}</p>
+          </div>
+          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>✅</div>
         </div>
-        <div className="card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', marginBottom: '1rem' }}>⏳</div>
-          <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>In Queue</h3>
-          <p style={{ fontSize: '3rem', fontWeight: 700, color: '#3b82f6', marginTop: '0.5rem', lineHeight: 1 }}>{data.counts.queued || 0}</p>
+
+        {/* In Queue */}
+        <div className="card hover-lift" style={{ padding: '1.25rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', background: 'linear-gradient(to bottom right, var(--bg-card), var(--bg-subtle))' }}>
+          <div>
+            <h3 style={{ fontSize: '0.75rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, marginBottom: '0.25rem' }}>In Queue</h3>
+            <p style={{ fontSize: '2rem', fontWeight: 700, color: '#3b82f6', lineHeight: 1 }}>{data.counts.queued || 0}</p>
+          </div>
+          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>⏳</div>
         </div>
-        <div className="card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', marginBottom: '1rem' }}>☁️</div>
-          <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Uploading</h3>
-          <p style={{ fontSize: '3rem', fontWeight: 700, color: '#f59e0b', marginTop: '0.5rem', lineHeight: 1 }}>{data.counts.uploading || 0}</p>
+
+        {/* Uploading */}
+        <div className="card hover-lift" style={{ padding: '1.25rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', background: 'linear-gradient(to bottom right, var(--bg-card), var(--bg-subtle))' }}>
+          <div>
+            <h3 style={{ fontSize: '0.75rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, marginBottom: '0.25rem' }}>Uploading</h3>
+            <p style={{ fontSize: '2rem', fontWeight: 700, color: '#f59e0b', lineHeight: 1 }}>{data.counts.uploading || 0}</p>
+          </div>
+          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>☁️</div>
         </div>
-        <div className="card hover-lift" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderColor: data.counts.failed > 0 ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-light)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', marginBottom: '1rem' }}>🛑</div>
-          <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>AI Failures</h3>
-          <p style={{ fontSize: '3rem', fontWeight: 700, color: '#ef4444', marginTop: '0.5rem', lineHeight: 1 }}>{data.counts.failed || 0}</p>
+
+        {/* AI Failures */}
+        <div className="card hover-lift" style={{ padding: '1.25rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderColor: data.counts.failed > 0 ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-light)', background: data.counts.failed > 0 ? 'linear-gradient(to bottom right, var(--bg-card), rgba(239, 68, 68, 0.05))' : 'linear-gradient(to bottom right, var(--bg-card), var(--bg-subtle))' }}>
+          <div>
+            <h3 style={{ fontSize: '0.75rem', color: 'var(--color-surface-400)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, marginBottom: '0.25rem' }}>AI Failures</h3>
+            <p style={{ fontSize: '2rem', fontWeight: 700, color: '#ef4444', lineHeight: 1 }}>{data.counts.failed || 0}</p>
+          </div>
+          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>🛑</div>
         </div>
+
       </div>
 
       {/* ── QUEUE MANAGEMENT ACTIONS ── */}
-      <div className="card animate-slide-up stagger-2" style={{ padding: '2rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-surface-100)', marginBottom: '1rem' }}>Queue Operations</h2>
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          
-          <button 
-            onClick={() => handleAction('retry_failed')}
-            disabled={actionLoading !== null || data.counts.failed === 0}
-            style={{
-              padding: '0.75rem 1.25rem', borderRadius: 8, fontWeight: 600, fontSize: '0.875rem',
-              background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: data.counts.failed === 0 ? 0.5 : 1
-            }}
-          >
-            {actionLoading === 'retry_failed' ? '🔄 Processing...' : '▶️ Retry Soft Failures'}
-          </button>
+      <div className="card animate-slide-up stagger-2" style={{ padding: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--color-surface-100)' }}>Queue Operations</h2>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--color-surface-400)', marginTop: '0.25rem' }}>
+              Manually intervene to un-jam or reset pipeline traffic.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button 
+              onClick={() => handleAction('retry_failed')}
+              disabled={actionLoading !== null || data.counts.failed === 0}
+              style={{
+                padding: '0.5rem 1rem', borderRadius: 8, fontWeight: 600, fontSize: '0.8125rem',
+                background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '0.35rem', opacity: data.counts.failed === 0 ? 0.5 : 1, transition: 'transform 0.2s'
+              }}
+            >
+              {actionLoading === 'retry_failed' ? '🔄 Processing...' : '▶️ Retry Fails'}
+            </button>
 
-          <button 
-            onClick={() => handleAction('resync_uploading')}
-            disabled={actionLoading !== null || data.counts.uploading === 0}
-            style={{
-              padding: '0.75rem 1.25rem', borderRadius: 8, fontWeight: 600, fontSize: '0.875rem',
-              background: 'var(--bg-subtle)', color: 'var(--color-surface-200)', border: '1px solid var(--border-med)', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: data.counts.uploading === 0 ? 0.5 : 1
-            }}
-          >
-            {actionLoading === 'resync_uploading' ? '🔄 Syncing...' : '🔄 Re-Sync Stuck Uploads'}
-          </button>
+            <button 
+              onClick={() => handleAction('resync_uploading')}
+              disabled={actionLoading !== null || data.counts.uploading === 0}
+              style={{
+                padding: '0.5rem 1rem', borderRadius: 8, fontWeight: 600, fontSize: '0.8125rem',
+                background: 'var(--bg-subtle)', color: 'var(--color-surface-200)', border: '1px solid var(--border-med)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '0.35rem', opacity: data.counts.uploading === 0 ? 0.5 : 1
+              }}
+            >
+              {actionLoading === 'resync_uploading' ? '🔄 Syncing...' : '🔄 Re-Sync'}
+            </button>
 
-          <button 
-            onClick={() => handleAction('purge_queue')}
-            disabled={actionLoading !== null || (data.counts.queued === 0 && data.counts.uploading === 0)}
-            style={{
-              padding: '0.75rem 1.25rem', borderRadius: 8, fontWeight: 600, fontSize: '0.875rem',
-              background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: (data.counts.queued === 0 && data.counts.uploading === 0) ? 0.5 : 1
-            }}
-          >
-            {actionLoading === 'purge_queue' ? '🛑 Purging...' : '🛑 Purge / Kill Queue'}
-          </button>
-
+            <button 
+              onClick={() => handleAction('purge_queue')}
+              disabled={actionLoading !== null || (data.counts.queued === 0 && data.counts.uploading === 0)}
+              style={{
+                padding: '0.5rem 1rem', borderRadius: 8, fontWeight: 600, fontSize: '0.8125rem',
+                background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '0.35rem', opacity: (data.counts.queued === 0 && data.counts.uploading === 0) ? 0.5 : 1
+              }}
+            >
+              {actionLoading === 'purge_queue' ? '🛑 Purging...' : '🛑 Purge'}
+            </button>
+          </div>
         </div>
-        <p style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', marginTop: '1rem' }}>
-          <strong>Note:</strong> Retrying failures will automatically stagger requests to protect your API limits. Purging the queue is permanent.
-        </p>
       </div>
 
       {/* ── UNIVERSAL API LIMIT TRACKERS ── */}
