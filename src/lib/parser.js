@@ -20,7 +20,6 @@
 
 import fetch from 'cross-fetch';
 import { z } from 'zod';
-import { createAdminClient } from '@/lib/supabase/admin';
 
 // ============================================================================
 // ZOD SCHEMA — Flat, simple, reliable
@@ -163,84 +162,12 @@ async function getAvailableGeminiModels(apiKey) {
 }
 
 // ============================================================================
-// API KEY MANAGER (MULTI-KEY LOAD BALANCER)
-// ============================================================================
-export const ApiKeyManager = {
-  async getNextKey(provider) {
-    const supabaseAdmin = createAdminClient();
-    
-    // First, try to fetch an active key that isn't rate-limited.
-    // Also fetch keys whose reset_time has passed.
-    const { data, error } = await supabaseAdmin
-      .from('api_keys')
-      .select('*')
-      .eq('provider', provider)
-      .or('status.eq.active,reset_time.lte.now()')
-      .order('last_used_at', { ascending: true, nullsFirst: true })
-      .limit(1);
-
-    if (error || !data || data.length === 0) {
-      console.warn(`[ApiKeyManager] No active keys available for ${provider}. Falling back to .env`);
-      if (provider === 'groq') return { key_value: process.env.GROQ_API_KEY, id: null };
-      if (provider === 'gemini') return { key_value: process.env.GEMINI_API_KEY, id: null };
-      return null;
-    }
-
-    const keyObj = data[0];
-
-    // Mark it as used immediately (so concurrent workers grab the next one)
-    if (keyObj.id) {
-      await supabaseAdmin.from('api_keys')
-        .update({ last_used_at: new Date().toISOString(), status: 'active', reset_time: null })
-        .eq('id', keyObj.id);
-    }
-
-    return keyObj;
-  },
-
-  async markSuccess(keyId) {
-    if (!keyId) return;
-    const supabaseAdmin = createAdminClient();
-    // Use an RPC to safely increment usage_count, or just do an update if precision isn't mission critical
-    // We'll just fetch current and increment to avoid needing a custom RPC for now
-    const { data } = await supabaseAdmin.from('api_keys').select('usage_count').eq('id', keyId).single();
-    if (data) {
-      await supabaseAdmin.from('api_keys')
-        .update({ usage_count: data.usage_count + 1 })
-        .eq('id', keyId);
-    }
-  },
-
-  async markRateLimited(keyId) {
-    if (!keyId) return;
-    console.warn(`[ApiKeyManager] Key ${keyId} hit a 429. Marking exhausted for 24 hours.`);
-    const supabaseAdmin = createAdminClient();
-    const resetTime = new Date();
-    resetTime.setHours(resetTime.getHours() + 24);
-    
-    await supabaseAdmin.from('api_keys')
-      .update({ status: 'exhausted', reset_time: resetTime.toISOString() })
-      .eq('id', keyId);
-  },
-
-  async markInvalid(keyId) {
-    if (!keyId) return;
-    console.error(`[ApiKeyManager] Key ${keyId} returned 401. Marking invalid permanently.`);
-    const supabaseAdmin = createAdminClient();
-    await supabaseAdmin.from('api_keys')
-      .update({ status: 'invalid' })
-      .eq('id', keyId);
-  }
-};
-
-// ============================================================================
 // OCR — For scanned PDFs / image resumes
 // ============================================================================
 export async function performOcrWithGemini(buffer, mimeType) {
-  const geminiObj = await ApiKeyManager.getNextKey('gemini');
-  if (!geminiObj || !geminiObj.key_value) return '';
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return '';
 
-  const apiKey = geminiObj.key_value;
   const modelsToTry = await getAvailableGeminiModels(apiKey);
   const prompt = 'You are an OCR engine. Extract ALL text from this document exactly as it appears. Return ONLY the raw text, no formatting.';
 
@@ -262,22 +189,11 @@ export async function performOcrWithGemini(buffer, mimeType) {
           }),
         }
       );
-
-      if (response.status === 429) {
-        await ApiKeyManager.markRateLimited(geminiObj.id);
-        console.warn(`[OCR] ${model} overloaded or key exhausted. Aborting OCR for this attempt to trigger global retry.`);
-        return ''; // Let it fail and trigger QStash retry on a new key later
-      }
-      if (response.status === 401 || response.status === 403) {
-        await ApiKeyManager.markInvalid(geminiObj.id);
-      }
-
       if (!response.ok) {
         if (response.status === 503) { console.warn(`[OCR] ${model} overloaded, trying next...`); continue; }
         return '';
       }
       const data = await response.json();
-      await ApiKeyManager.markSuccess(geminiObj.id);
       return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     } catch (err) {
       console.error(`[OCR] ${model} failed:`, err.message);
@@ -354,116 +270,101 @@ ${text.substring(0, 14000)}`;
 }
 
 // ============================================================================
-// MAIN AI PARSER — Groq → Gemini cascade (Load Balanced)
+// MAIN AI PARSER — Groq → Gemini cascade
 // ============================================================================
 export async function parseTextWithAi(text) {
+  const groqKey   = process.env.GROQ_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY;
+
+  if (!groqKey && !geminiKey) {
+    console.log('[Parser] No AI keys configured. Using regex fallback.');
+    return null;
+  }
+
   const prompt = buildPrompt(text);
 
-  // We will loop a few times to allow for key-rotation fallback if a key is exhausted mid-flight.
-  const MAX_GLOBAL_RETRIES = 2;
+  // ── TIER 1: GROQ (ultra-fast, free) ──────────────────────────────────────
+  if (groqKey) {
+    const groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+    for (const model of groqModels) {
+      try {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${groqKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.1,
+            response_format: { type: 'json_object' },
+          }),
+        });
 
-  for (let attempt = 0; attempt < MAX_GLOBAL_RETRIES; attempt++) {
-    
-    // ── TIER 1: GROQ (ultra-fast, free) ──────────────────────────────────────
-    const groqObj = await ApiKeyManager.getNextKey('groq');
-    if (groqObj && groqObj.key_value) {
-      const groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
-      for (const model of groqModels) {
-        try {
-          const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        if (response.status === 429) {
+          console.warn(`[Parser] Groq ${model} rate limited → next model`);
+          continue;
+        }
+        if (!response.ok) {
+          console.error(`[Parser] Groq ${model} error:`, response.status);
+          continue;
+        }
+
+        const data    = await response.json();
+        const content = data.choices?.[0]?.message?.content || '';
+        const rawJson = JSON.parse(content);
+        console.log(`[Parser] Groq ${model} succeeded.`);
+        return ResumeSchema.parse(rawJson);
+
+      } catch (err) {
+        console.warn(`[Parser] Groq ${model} failed:`, err.message);
+      }
+    }
+    console.warn('[Parser] All Groq models exhausted → Gemini fallback');
+  }
+
+  // ── TIER 2: GEMINI FALLBACK ───────────────────────────────────────────────
+  if (geminiKey) {
+    const geminiModels = await getAvailableGeminiModels(geminiKey);
+    for (const model of geminiModels.slice(0, 3)) { // try top 3 models
+      try {
+        console.log(`[Parser] Trying Gemini ${model}...`);
+        const response = await fetchWithRetry(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+          {
             method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${groqObj.key_value}`,
-              'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              model,
-              messages: [{ role: 'user', content: prompt }],
-              temperature: 0.1,
-              response_format: { type: 'json_object' },
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 4096,
+                responseMimeType: 'application/json',
+              },
             }),
-          });
-
-          if (response.status === 429) {
-            console.warn(`[Parser] Groq key hit 429. Rotating key...`);
-            await ApiKeyManager.markRateLimited(groqObj.id);
-            break; // Break inner loop to try fetching a NEW Groq key via the outer attempt loop
           }
-          if (response.status === 401 || response.status === 403) {
-            await ApiKeyManager.markInvalid(groqObj.id);
-            break;
-          }
-          if (!response.ok) {
-            console.error(`[Parser] Groq ${model} error:`, response.status);
-            continue; // Try next model on same key
-          }
+        );
 
-          const data    = await response.json();
-          const content = data.choices?.[0]?.message?.content || '';
-          const rawJson = JSON.parse(content);
-          console.log(`[Parser] Groq ${model} succeeded with key ${groqObj.id}.`);
-          await ApiKeyManager.markSuccess(groqObj.id);
-          return ResumeSchema.parse(rawJson);
-
-        } catch (err) {
-          console.warn(`[Parser] Groq ${model} failed:`, err.message);
+        if (!response.ok) {
+          console.error(`[Parser] Gemini ${model} error:`, response.status);
+          continue;
         }
+
+        const data         = await response.json();
+        const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        // Strip any accidental markdown wrapping
+        const cleaned = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const rawJson  = JSON.parse(cleaned);
+        console.log(`[Parser] Gemini ${model} succeeded.`);
+        return ResumeSchema.parse(rawJson);
+
+      } catch (err) {
+        console.warn(`[Parser] Gemini ${model} failed:`, err.message);
       }
     }
+    console.warn('[Parser] All Gemini models exhausted → regex fallback');
+  }
 
-    // ── TIER 2: GEMINI FALLBACK ───────────────────────────────────────────────
-    const geminiObj = await ApiKeyManager.getNextKey('gemini');
-    if (geminiObj && geminiObj.key_value) {
-      const geminiModels = await getAvailableGeminiModels(geminiObj.key_value);
-      for (const model of geminiModels.slice(0, 3)) { // try top 3 models
-        try {
-          console.log(`[Parser] Trying Gemini ${model}...`);
-          const response = await fetchWithRetry(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiObj.key_value}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                  temperature: 0.1,
-                  maxOutputTokens: 4096,
-                  responseMimeType: 'application/json',
-                },
-              }),
-            }
-          );
-
-          if (response.status === 429) {
-            console.warn(`[Parser] Gemini key hit 429. Rotating key...`);
-            await ApiKeyManager.markRateLimited(geminiObj.id);
-            break; // Break inner loop to fetch a new Gemini key via outer attempt
-          }
-          if (response.status === 401 || response.status === 403) {
-            await ApiKeyManager.markInvalid(geminiObj.id);
-            break;
-          }
-          if (!response.ok) {
-            console.error(`[Parser] Gemini ${model} error:`, response.status);
-            continue;
-          }
-
-          const data         = await response.json();
-          const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          // Strip any accidental markdown wrapping
-          const cleaned = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-          const rawJson  = JSON.parse(cleaned);
-          console.log(`[Parser] Gemini ${model} succeeded.`);
-          await ApiKeyManager.markSuccess(geminiObj.id);
-          return ResumeSchema.parse(rawJson);
-
-        } catch (err) {
-          console.warn(`[Parser] Gemini ${model} failed:`, err.message);
-        }
-      }
-    }
-  } // End of outer retry loop
-
-  console.warn('[Parser] All API keys exhausted or rate-limited → regex fallback');
   return null; // Caller will use extractWithRegex
 }

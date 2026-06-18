@@ -58,16 +58,9 @@ export async function GET() {
       }
     }
 
-    // 3. Fetch exact live API keys statuses and usages
-    const { data: apiKeys } = await supabaseAdmin
-      .from('api_keys')
-      .select('*')
-      .order('provider');
-
     return NextResponse.json({
       success: true,
       counts,
-      apiKeys: apiKeys || [],
       errors: Object.entries(groupedErrors).map(([message, details]) => ({
         message,
         category: details.category,
@@ -128,21 +121,6 @@ export async function POST(req) {
 
       if (error) throw error;
       return NextResponse.json({ success: true, message: `Purged ${data?.length || 0} items from the queue. AI pipeline halted.` });
-    }
-
-    if (action === 'add_keys') {
-      const { keys } = await req.json();
-      if (!Array.isArray(keys) || keys.length === 0) throw new Error('No keys provided');
-
-      const inserts = keys.map(k => ({
-        provider: k.provider,
-        key_value: k.key_value,
-        status: 'active'
-      }));
-
-      const { data, error } = await supabaseAdmin.from('api_keys').insert(inserts).select('id');
-      if (error) throw error;
-      return NextResponse.json({ success: true, message: `Successfully added ${data.length} keys to the vault.` });
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
