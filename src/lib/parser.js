@@ -321,7 +321,6 @@ export async function parseTextWithAi(text) {
         console.warn(`[Parser] Groq ${model} failed:`, err.message);
       }
     }
-    }
     console.warn('[Parser] All Groq models exhausted → regex fallback');
   }
 
