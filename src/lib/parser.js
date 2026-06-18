@@ -321,49 +321,8 @@ export async function parseTextWithAi(text) {
         console.warn(`[Parser] Groq ${model} failed:`, err.message);
       }
     }
-    console.warn('[Parser] All Groq models exhausted → Gemini fallback');
-  }
-
-  // ── TIER 2: GEMINI FALLBACK ───────────────────────────────────────────────
-  if (geminiKey) {
-    const geminiModels = await getAvailableGeminiModels(geminiKey);
-    for (const model of geminiModels.slice(0, 3)) { // try top 3 models
-      try {
-        console.log(`[Parser] Trying Gemini ${model}...`);
-        const response = await fetchWithRetry(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: {
-                temperature: 0.1,
-                maxOutputTokens: 4096,
-                responseMimeType: 'application/json',
-              },
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          console.error(`[Parser] Gemini ${model} error:`, response.status);
-          continue;
-        }
-
-        const data         = await response.json();
-        const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        // Strip any accidental markdown wrapping
-        const cleaned = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        const rawJson  = JSON.parse(cleaned);
-        console.log(`[Parser] Gemini ${model} succeeded.`);
-        return ResumeSchema.parse(rawJson);
-
-      } catch (err) {
-        console.warn(`[Parser] Gemini ${model} failed:`, err.message);
-      }
     }
-    console.warn('[Parser] All Gemini models exhausted → regex fallback');
+    console.warn('[Parser] All Groq models exhausted → regex fallback');
   }
 
   return null; // Caller will use extractWithRegex
