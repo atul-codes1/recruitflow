@@ -4,9 +4,15 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function HealthClient({ role }) {
-  const [data, setData] = useState({ counts: {}, errors: [] });
+  const [data, setData] = useState({ counts: {}, errors: [], apiKeys: [] });
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
+  
+  // Key Vault State
+  const [newKeysText, setNewKeysText] = useState('');
+  const [isAddingKeys, setIsAddingKeys] = useState(false);
+  const [keyProvider, setKeyProvider] = useState('groq');
+
   const router = useRouter();
 
   const fetchHealth = async () => {
@@ -15,7 +21,7 @@ export default function HealthClient({ role }) {
       const res = await fetch('/api/health');
       const json = await res.json();
       if (json.success) {
-        setData({ counts: json.counts, errors: json.errors });
+        setData({ counts: json.counts, errors: json.errors, apiKeys: json.apiKeys || [] });
       }
     } catch (err) {
       console.error(err);
@@ -57,6 +63,36 @@ export default function HealthClient({ role }) {
     }
   };
 
+  const handleAddKeys = async () => {
+    if (!newKeysText.trim()) return;
+    const keyArray = newKeysText.split(',').map(k => k.trim()).filter(k => k.length > 10);
+    if (keyArray.length === 0) return alert('No valid keys found.');
+
+    try {
+      setIsAddingKeys(true);
+      const res = await fetch('/api/health', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_keys',
+          keys: keyArray.map(k => ({ provider: keyProvider, key_value: k }))
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert(json.message);
+        setNewKeysText('');
+        fetchHealth();
+      } else {
+        alert('Failed: ' + json.error);
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      setIsAddingKeys(false);
+    }
+  };
+
   if (loading && Object.keys(data.counts).length === 0) {
     return (
       <div style={{ display: 'flex', gap: '1rem' }}>
@@ -70,19 +106,24 @@ export default function HealthClient({ role }) {
 
   const totalApps = (data.counts.completed || 0) + (data.counts.queued || 0) + (data.counts.failed || 0) + (data.counts.uploading || 0);
 
-  // Approximate Trackers (Based on daily counts - in a real app, you'd calculate today's specific uploads)
-  // We use totalApps as a rough estimate for demo purposes of the progress bars
+  // Live Trackers
   const qstashUsed = Math.min(totalApps, 1000);
   const qstashPct = (qstashUsed / 1000) * 100;
   
-  const groqUsed = Math.min(totalApps, 14400);
-  const groqPct = (groqUsed / 14400) * 100;
+  // Calculate live Groq and Gemini usage across all keys
+  const groqKeys = data.apiKeys.filter(k => k.provider === 'groq');
+  const geminiKeys = data.apiKeys.filter(k => k.provider === 'gemini');
 
-  const geminiUsed = Math.min(totalApps, 1500); // OCR Fallbacks
-  const geminiPct = (geminiUsed / 1500) * 100;
+  const groqTotalLimit = groqKeys.length * 14400;
+  const groqTotalUsed = groqKeys.reduce((sum, k) => sum + (k.usage_count || 0), 0);
+  const groqPct = groqTotalLimit > 0 ? Math.min((groqTotalUsed / groqTotalLimit) * 100, 100) : 0;
+
+  const geminiTotalLimit = geminiKeys.length * 1500;
+  const geminiTotalUsed = geminiKeys.reduce((sum, k) => sum + (k.usage_count || 0), 0);
+  const geminiPct = geminiTotalLimit > 0 ? Math.min((geminiTotalUsed / geminiTotalLimit) * 100, 100) : 0;
 
   const driveUsed = totalApps;
-  const drivePct = Math.min((driveUsed / 100000) * 100, 100); // Huge limits typically
+  const drivePct = Math.min((driveUsed / 100000) * 100, 100); 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -178,8 +219,12 @@ export default function HealthClient({ role }) {
           {/* Groq */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-surface-200)' }}>Groq API (Primary High-Speed AI)</span>
-              <span style={{ fontSize: '0.875rem', color: groqPct >= 100 ? '#ef4444' : 'var(--color-surface-400)' }}>{groqUsed.toLocaleString()} / 14,400</span>
+              <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-surface-200)' }}>
+                Groq API (Live Pool: {groqKeys.length} keys)
+              </span>
+              <span style={{ fontSize: '0.875rem', color: groqPct >= 100 ? '#ef4444' : 'var(--color-surface-400)' }}>
+                {groqTotalUsed.toLocaleString()} / {groqTotalLimit > 0 ? groqTotalLimit.toLocaleString() : 'N/A'}
+              </span>
             </div>
             <div style={{ height: 8, background: 'var(--bg-subtle)', borderRadius: 4, overflow: 'hidden' }}>
               <div style={{ height: '100%', background: groqPct >= 100 ? '#ef4444' : '#8b5cf6', width: `${groqPct}%`, transition: 'width 0.5s ease-out' }}></div>
@@ -189,8 +234,12 @@ export default function HealthClient({ role }) {
           {/* Gemini */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-surface-200)' }}>Gemini API (Fallback & OCR Engine)</span>
-              <span style={{ fontSize: '0.875rem', color: geminiPct >= 100 ? '#ef4444' : 'var(--color-surface-400)' }}>{geminiUsed.toLocaleString()} / 1,500</span>
+              <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-surface-200)' }}>
+                Gemini API (Live Pool: {geminiKeys.length} keys)
+              </span>
+              <span style={{ fontSize: '0.875rem', color: geminiPct >= 100 ? '#ef4444' : 'var(--color-surface-400)' }}>
+                {geminiTotalUsed.toLocaleString()} / {geminiTotalLimit > 0 ? geminiTotalLimit.toLocaleString() : 'N/A'}
+              </span>
             </div>
             <div style={{ height: 8, background: 'var(--bg-subtle)', borderRadius: 4, overflow: 'hidden' }}>
               <div style={{ height: '100%', background: geminiPct >= 100 ? '#ef4444' : '#3b82f6', width: `${geminiPct}%`, transition: 'width 0.5s ease-out' }}></div>
@@ -211,8 +260,87 @@ export default function HealthClient({ role }) {
         </div>
       </div>
 
-      {/* ── INTELLIGENT ERROR LOGS ── */}
+      {/* ── KEY VAULT (LOAD BALANCER MGR) ── */}
       <div className="card animate-slide-up stagger-4" style={{ padding: '2rem' }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-surface-100)', marginBottom: '0.5rem' }}>🔑 The Key Vault</h2>
+        <p style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', marginBottom: '1.5rem' }}>
+          Add multiple API keys to increase your daily limits. The system will automatically round-robin between them and rotate exhausted keys.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem', background: 'var(--bg-subtle)', padding: '1.5rem', borderRadius: 8 }}>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <select 
+              value={keyProvider} 
+              onChange={(e) => setKeyProvider(e.target.value)}
+              style={{ padding: '0.75rem', borderRadius: 8, background: 'var(--bg-card)', color: 'var(--color-surface-100)', border: '1px solid var(--border-med)' }}
+            >
+              <option value="groq">Groq</option>
+              <option value="gemini">Gemini</option>
+            </select>
+            <input 
+              type="text" 
+              placeholder="Paste comma-separated keys here..." 
+              value={newKeysText}
+              onChange={(e) => setNewKeysText(e.target.value)}
+              style={{ flex: 1, padding: '0.75rem', borderRadius: 8, background: 'var(--bg-card)', color: 'var(--color-surface-100)', border: '1px solid var(--border-med)' }}
+            />
+            <button 
+              onClick={handleAddKeys}
+              disabled={isAddingKeys || !newKeysText.trim()}
+              style={{
+                padding: '0.75rem 1.5rem', borderRadius: 8, fontWeight: 600,
+                background: 'var(--color-primary-500)', color: '#fff', border: 'none', cursor: 'pointer',
+                opacity: (isAddingKeys || !newKeysText.trim()) ? 0.5 : 1
+              }}
+            >
+              {isAddingKeys ? 'Adding...' : 'Add Keys'}
+            </button>
+          </div>
+        </div>
+
+        {/* Live Key Status Table */}
+        <div className="table-container responsive-table-wrapper">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Key (Hidden)</th>
+                <th>Status</th>
+                <th>Usage Count</th>
+                <th>Reset Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.apiKeys.length === 0 ? (
+                <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem 0' }}>No keys in the vault. System uses fallback .env.</td></tr>
+              ) : (
+                data.apiKeys.map(k => (
+                  <tr key={k.id} className="hover-row">
+                    <td style={{ textTransform: 'capitalize', fontWeight: 600 }}>{k.provider}</td>
+                    <td>{k.key_value.substring(0, 4)}••••••••••{k.key_value.slice(-4)}</td>
+                    <td>
+                      <span style={{ 
+                        padding: '0.25rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 600,
+                        background: k.status === 'active' ? 'rgba(16, 185, 129, 0.1)' : k.status === 'exhausted' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        color: k.status === 'active' ? '#10b981' : k.status === 'exhausted' ? '#f59e0b' : '#ef4444'
+                      }}>
+                        {k.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td>{k.usage_count}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--color-surface-400)' }}>
+                      {k.reset_time ? new Date(k.reset_time).toLocaleString() : 'N/A'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── INTELLIGENT ERROR LOGS ── */}
+      <div className="card animate-slide-up stagger-5" style={{ padding: '2rem' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-surface-100)', marginBottom: '1rem' }}>Intelligent Error Logs (Last 100 Failures)</h2>
         
         {data.errors.length === 0 ? (
