@@ -784,6 +784,18 @@ table.table-compact tbody tr:hover {
 }
 
 @media (max-width: 768px) {
+  .search-layout-wrapper {
+    flex-direction: column !important;
+    padding: 12px !important;
+  }
+  .search-sidebar {
+    width: 100% !important;
+    max-width: none !important;
+    margin-right: 0 !important;
+    margin-bottom: 20px !important;
+    position: static !important;
+  }
+  
   /* Hide elements on mobile */
   .hide-on-mobile {
     display: none !important;

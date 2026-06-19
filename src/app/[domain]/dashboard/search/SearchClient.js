@@ -697,10 +697,10 @@ export default function SearchClient() {
         </div>
 
         {/* ── Page Body ── */}
-        <div style={{ display: 'flex', gap: 0, maxWidth: 1280, margin: '0 auto', padding: '20px 24px', alignItems: 'flex-start' }}>
+        <div className="search-layout-wrapper" style={{ display: 'flex', gap: 0, maxWidth: 1280, margin: '0 auto', padding: '20px 24px', alignItems: 'flex-start' }}>
 
           {/* ── SIDEBAR ── */}
-          <aside style={{
+          <aside className="search-sidebar" style={{
             width: 236, flexShrink: 0, marginRight: 20,
             background: 'var(--bg-card)', border: '1px solid var(--border-light)',
             borderRadius: 12, overflow: 'hidden',

@@ -11,8 +11,28 @@ export default function AuthPage() {
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [theme, setTheme] = useState('dark');
   
   const router = useRouter();
+
+  // Handle Theme Initialization
+  useEffect(() => {
+    const saved = localStorage.getItem('recruitflow-theme');
+    if (saved) {
+      setTheme(saved);
+      document.documentElement.setAttribute('data-theme', saved);
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+      setTheme('light');
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('recruitflow-theme', newTheme);
+  };
 
   // Automatically capture errors from the URL (e.g. ?error=GhostSession)
   // We use useEffect to avoid breaking Next.js Static Rendering with useSearchParams()
@@ -144,6 +164,26 @@ export default function AuthPage() {
       fontFamily: '"Inter", sans-serif'
     }}>
       
+      {/* Floating Theme Toggle */}
+      <button 
+        onClick={toggleTheme}
+        style={{
+          position: 'absolute', top: '1.5rem', right: '1.5rem', zIndex: 10,
+          background: 'var(--bg-card)', border: '1px solid var(--border-light)',
+          color: 'var(--color-surface-100)', padding: '0.6rem', borderRadius: '50%',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: 'var(--shadow-card)', transition: 'all 0.3s ease',
+        }}
+        title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+        className="hover-lift"
+      >
+        {theme === 'dark' ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        )}
+      </button>
+
       {/* Injecting Premium CSS for Inputs and Animations */}
       <style dangerouslySetInnerHTML={{__html: `
         .premium-input {

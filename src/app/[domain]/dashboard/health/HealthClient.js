@@ -246,7 +246,7 @@ export default function HealthClient({ role }) {
                 
                 {/* Header Row */}
                 <div style={{ 
-                  background: 'var(--bg-subtle)', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  background: 'var(--bg-subtle)', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem',
                   borderBottom: '1px solid var(--border-light)'
                 }}>
                   <div>
