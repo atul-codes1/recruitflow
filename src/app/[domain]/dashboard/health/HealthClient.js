@@ -70,19 +70,20 @@ export default function HealthClient({ role }) {
 
   const totalApps = (data.counts.completed || 0) + (data.counts.queued || 0) + (data.counts.failed || 0) + (data.counts.uploading || 0);
 
-  // Approximate Trackers (Based on daily counts - in a real app, you'd calculate today's specific uploads)
-  // We use totalApps as a rough estimate for demo purposes of the progress bars
-  const qstashUsed = Math.min(totalApps, 1000);
+  // 100% Live Daily Trackers (Resets at midnight UTC)
+  const todayCount = data.todayCount || 0;
+  
+  const qstashUsed = Math.min(todayCount, 1000);
   const qstashPct = (qstashUsed / 1000) * 100;
   
-  const groqUsed = Math.min(totalApps, 14400);
+  const groqUsed = Math.min(todayCount, 14400);
   const groqPct = (groqUsed / 14400) * 100;
 
-  const geminiUsed = Math.min(totalApps, 1500); // OCR Fallbacks
+  const geminiUsed = Math.min(todayCount, 1500); // OCR & Embeddings
   const geminiPct = (geminiUsed / 1500) * 100;
 
-  const driveUsed = totalApps;
-  const drivePct = Math.min((driveUsed / 100000) * 100, 100); // Huge limits typically
+  const driveUsed = totalApps; // Drive doesn't reset daily
+  const drivePct = Math.min((driveUsed / 100000) * 100, 100);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -179,7 +180,7 @@ export default function HealthClient({ role }) {
 
       {/* ── UNIVERSAL API LIMIT TRACKERS ── */}
       <div className="card animate-slide-up stagger-3" style={{ padding: '2rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-surface-100)', marginBottom: '1.5rem' }}>Universal API Trackers (Daily Estimates)</h2>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-surface-100)', marginBottom: '1.5rem' }}>Live API Trackers (Resets Midnight UTC)</h2>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           

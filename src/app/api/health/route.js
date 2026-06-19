@@ -28,6 +28,14 @@ export async function GET() {
       .order('created_at', { ascending: false })
       .limit(100);
 
+    // 3. Fetch Today's Uploads for accurate Daily API Limit Tracking
+    const startOfTodayUTC = new Date();
+    startOfTodayUTC.setUTCHours(0, 0, 0, 0);
+    const { count: todayCount } = await supabaseAdmin
+      .from('applications')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', startOfTodayUTC.toISOString());
+
     // Group errors by reason for UI categorization
     const groupedErrors = {};
     if (errorLogs) {
@@ -58,16 +66,17 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      counts,
-      errors: Object.entries(groupedErrors).map(([message, details]) => ({
-        message,
-        category: details.category,
-        count: details.count,
-        examples: details.examples
-      }))
-    });
+    return NextResponse.json({ 
+        success: true, 
+        counts, 
+        todayCount: todayCount || 0,
+        errors: Object.entries(groupedErrors).map(([message, details]) => ({
+          message,
+          category: details.category,
+          count: details.count,
+          examples: details.examples
+        }))
+      });
 
   } catch (error) {
     console.error('[Health GET] Error:', error);
