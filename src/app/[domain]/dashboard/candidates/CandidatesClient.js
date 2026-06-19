@@ -202,7 +202,7 @@ export default function CandidatesClient({ initialApplications, jobs, currentPag
         border: '1px solid var(--border-light)',
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '1.25rem' }}>🎓</span>
           <select 
             value={expFilter} 

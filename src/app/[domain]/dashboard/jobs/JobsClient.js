@@ -161,7 +161,7 @@ export default function JobsClient({ domain, initialJobs, userId, userRole }) {
   return (
     <div className="animate-fade">
       {/* Header */}
-      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '2rem', fontWeight: 800, fontFamily: 'var(--font-outfit, var(--font-display))', color: 'var(--color-surface-100)', marginBottom: '0.5rem' }}>
             Job Postings
@@ -199,7 +199,7 @@ export default function JobsClient({ domain, initialJobs, userId, userRole }) {
               </div>
             </div>
             
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
               {/* RBAC: Only Admins can edit/delete jobs */}
               {userRole === 'admin' && (
                 <>
