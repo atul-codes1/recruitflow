@@ -116,6 +116,7 @@ async function processQueue(request) {
               ext,
               storage_config: application.companies?.storage_config || {},
             },
+            retries: 0,
           });
         }
         

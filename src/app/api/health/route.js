@@ -51,6 +51,9 @@ export async function GET() {
         } else if (note.includes('429')) {
           category = 'Soft Fail (Rate Limit)';
           cleanNote = 'AI Provider Rate Limit (429)';
+        } else if (note.includes('invalid_grant')) {
+          category = 'Hard Fail (Authentication)';
+          cleanNote = 'Google Drive Token Expired (Please Reconnect)';
         } else if (note.includes('corrupt') || note.includes('read pdf') || note.includes('extract text')) {
           category = 'Hard Fail (Bad File)';
           cleanNote = 'Unreadable or Corrupted Document';
