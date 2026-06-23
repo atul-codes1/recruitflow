@@ -36,7 +36,7 @@ async function processQueue(request) {
     // 1. Find all stuck applications (limit to 50 per tick for safety)
     const { data: stuckApps, error } = await supabaseAdmin
       .from('applications')
-      .select('*')
+      .select('*, companies(storage_config)')
       .in('ai_status', ['queued', 'failed', 'uploading'])
       .limit(50);
 
@@ -86,6 +86,7 @@ async function processQueue(request) {
               fileName: application.resume_filename,
               jobSlug: '',
               ext,
+              storage_config: application.companies?.storage_config || {},
             })
           });
           if (!res.ok) throw new Error('Worker returned ' + res.status);
@@ -104,6 +105,7 @@ async function processQueue(request) {
               fileName: application.resume_filename,
               jobSlug: '', // we don't strictly need job slug for reparse
               ext,
+              storage_config: application.companies?.storage_config || {},
             },
           });
         }
@@ -124,16 +126,21 @@ async function processQueue(request) {
       if (cleanBaseUrl.endsWith('/')) cleanBaseUrl = cleanBaseUrl.slice(0, -1);
       
       console.log(`[Batch Processor] Queue not empty. Scheduling next batch in 10 seconds...`);
-      await qstash.publishJSON({
-        url: `${cleanBaseUrl}/api/cron/process-queue`,
-        delay: "10s",
-        body: {}
-      });
+      try {
+        await qstash.publishJSON({
+          url: `${cleanBaseUrl}/api/cron/process-queue`,
+          delay: "10s",
+          body: {}
+        });
+      } catch (qstashError) {
+        console.error('[Batch Processor] Failed to schedule self-chaining:', qstashError);
+        throw new Error(`QStash self-chaining failed: ${qstashError.message}`);
+      }
     }
 
     return NextResponse.json({ success: true, processed: processedCount, chained: stuckApps.length === 50 });
   } catch (error) {
     console.error('Batch processing error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }
