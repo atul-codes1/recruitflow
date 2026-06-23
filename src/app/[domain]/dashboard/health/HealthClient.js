@@ -135,10 +135,37 @@ export default function HealthClient({ role }) {
           <div>
             <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--color-surface-100)' }}>Queue Operations</h2>
             <p style={{ fontSize: '0.8125rem', color: 'var(--color-surface-400)', marginTop: '0.25rem' }}>
-              Manually intervene to un-jam or reset pipeline traffic.
+              Auto-processes every 5 min via cron. Use buttons below to manually intervene.
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button 
+              onClick={async () => {
+                setActionLoading('process_queue');
+                try {
+                  const res = await fetch('/api/cron/process-queue', { method: 'POST' });
+                  const json = await res.json();
+                  if (json.success) {
+                    alert(`Dispatched ${json.processed} resumes to AI pipeline.`);
+                    fetchHealth();
+                  } else {
+                    alert('Failed: ' + (json.error || 'Unknown error'));
+                  }
+                } catch (err) {
+                  alert('Error: ' + err.message);
+                } finally {
+                  setActionLoading(null);
+                }
+              }}
+              disabled={actionLoading !== null || data.counts.queued === 0}
+              style={{
+                padding: '0.5rem 1rem', borderRadius: 8, fontWeight: 600, fontSize: '0.8125rem',
+                background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '0.35rem', opacity: data.counts.queued === 0 ? 0.5 : 1, transition: 'transform 0.2s'
+              }}
+            >
+              {actionLoading === 'process_queue' ? '⚡ Processing...' : `⚡ Process Queue (${data.counts.queued || 0})`}
+            </button>
             <button 
               onClick={() => handleAction('retry_failed')}
               disabled={actionLoading !== null || data.counts.failed === 0}

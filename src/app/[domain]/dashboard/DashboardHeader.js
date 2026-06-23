@@ -64,7 +64,7 @@ export default function DashboardHeader({ domain, profile }) {
       }} className="px-responsive">
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-          <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <Link href={`/${domain}/dashboard`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div className="animate-float" style={{
               width: '32px',
               height: '32px',

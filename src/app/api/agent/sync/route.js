@@ -277,6 +277,8 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Agent Sync error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    // Return the actual error message so the Desktop Agent can display it
+    const message = error.message || 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

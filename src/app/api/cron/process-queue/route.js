@@ -14,15 +14,31 @@ import { Client } from "@upstash/qstash";
  * Falls back to synchronous execution when running locally (if QSTASH_TOKEN is missing).
  */
 export async function POST(request) {
+  return processQueue(request);
+}
+
+/**
+ * Vercel Cron uses GET requests. We verify using CRON_SECRET for security.
+ */
+export async function GET(request) {
+  // Verify the cron secret to prevent unauthorized access
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return processQueue(request);
+}
+
+async function processQueue(request) {
   try {
     const supabaseAdmin = createAdminClient();
 
-    // 1. Find all stuck applications (limit to 20 for safety)
+    // 1. Find all stuck applications (limit to 50 per tick for safety)
     const { data: stuckApps, error } = await supabaseAdmin
       .from('applications')
       .select('*')
       .in('ai_status', ['queued', 'failed', 'uploading'])
-      .limit(20);
+      .limit(50);
 
     if (error) throw error;
 
