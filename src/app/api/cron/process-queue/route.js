@@ -116,7 +116,22 @@ async function processQueue(request) {
       }
     }
 
-    return NextResponse.json({ success: true, processed: processedCount });
+    // 3. Self-Chaining Logic:
+    // If we processed a full batch of 50, there are likely more in the queue.
+    // Since Vercel Hobby only allows daily crons, we use QStash to schedule the next batch in 10 seconds.
+    if (stuckApps.length === 50 && !isLocal) {
+      let cleanBaseUrl = baseUrl;
+      if (cleanBaseUrl.endsWith('/')) cleanBaseUrl = cleanBaseUrl.slice(0, -1);
+      
+      console.log(`[Batch Processor] Queue not empty. Scheduling next batch in 10 seconds...`);
+      await qstash.publishJSON({
+        url: `${cleanBaseUrl}/api/cron/process-queue`,
+        delay: "10s",
+        body: {}
+      });
+    }
+
+    return NextResponse.json({ success: true, processed: processedCount, chained: stuckApps.length === 50 });
   } catch (error) {
     console.error('Batch processing error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
