@@ -258,62 +258,7 @@ export default function HealthClient({ role }) {
         </div>
       </div>
 
-      {/* ── INTELLIGENT ERROR LOGS ── */}
-      <div className="card animate-slide-up stagger-4" style={{ padding: '2rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-surface-100)', marginBottom: '1rem' }}>Intelligent Error Logs (Last 100 Failures)</h2>
-        
-        {data.errors.length === 0 ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-surface-400)', background: 'var(--bg-subtle)', borderRadius: 8 }}>
-            ✅ No recent errors to display. Your system is healthy.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {data.errors.map((errGroup, idx) => (
-              <div key={idx} style={{ border: '1px solid var(--border-light)', borderRadius: 8, overflow: 'hidden' }}>
-                
-                {/* Header Row */}
-                <div style={{ 
-                  background: 'var(--bg-subtle)', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem',
-                  borderBottom: '1px solid var(--border-light)'
-                }}>
-                  <div>
-                    <span style={{ 
-                      padding: '0.25rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 600, marginRight: '1rem',
-                      background: errGroup.category.includes('Soft') ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                      color: errGroup.category.includes('Soft') ? '#f59e0b' : '#ef4444'
-                    }}>
-                      {errGroup.category}
-                    </span>
-                    <strong style={{ color: 'var(--color-surface-100)', fontSize: '0.9375rem' }}>{errGroup.message}</strong>
-                  </div>
-                  <div style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)' }}>
-                    <strong>{errGroup.count}</strong> occurrences
-                  </div>
-                </div>
 
-                {/* Example Files */}
-                <div style={{ padding: '1rem', background: 'var(--bg-card)' }}>
-                  <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-surface-500)', marginBottom: '0.5rem', fontWeight: 600 }}>Affected Files (Sample)</p>
-                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {errGroup.examples.map(ex => (
-                      <li key={ex.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                        <span style={{ color: 'var(--color-surface-200)' }}>📄 {ex.resume_filename || 'Unknown File'}</span>
-                        <span style={{ color: 'var(--color-surface-500)' }}>{new Date(ex.created_at).toLocaleTimeString()}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {errGroup.count > 5 && (
-                    <p style={{ fontSize: '0.8125rem', color: 'var(--color-surface-500)', marginTop: '0.5rem', fontStyle: 'italic' }}>
-                      ...and {errGroup.count - 5} more.
-                    </p>
-                  )}
-                </div>
-
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
     </div>
   );
