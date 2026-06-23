@@ -48,15 +48,16 @@ async function processQueue(request) {
 
     const isLocal = process.env.NODE_ENV !== 'production' || !process.env.QSTASH_TOKEN;
 
-    let qstash, baseUrl;
+    const protocol = 'https';
+    const host = request.headers.get('host');
+    let baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    if (!baseUrl || baseUrl.includes('localhost')) {
+        baseUrl = host ? `${protocol}://${host}` : 'https://recruitflow-nexion.vercel.app';
+    }
+
+    let qstash;
     if (!isLocal) {
       qstash = new Client({ token: process.env.QSTASH_TOKEN });
-      const protocol = 'https';
-      const host = request.headers.get('host');
-      baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
-      if (!baseUrl || baseUrl.includes('localhost')) {
-          baseUrl = host ? `${protocol}://${host}` : 'https://recruitflow-nexion.vercel.app';
-      }
     }
 
     let processedCount = 0;
@@ -75,8 +76,16 @@ async function processQueue(request) {
         await supabaseAdmin.from('applications').update({ ai_status: 'queued' }).eq('id', application.id);
 
         if (isLocal) {
-          console.log(`[Batch Processor] Running locally. Processing ${application.id} synchronously...`);
-          const res = await fetch(`http://localhost:${process.env.PORT || 3000}/api/worker/process-resume`, {
+          console.log(`[Batch Processor] Running synchronously. Processing ${application.id}...`);
+          
+          let fetchUrl = `http://localhost:${process.env.PORT || 3000}/api/worker/process-resume`;
+          if (process.env.NODE_ENV === 'production' && baseUrl) {
+            let cleanBaseUrl = baseUrl;
+            if (cleanBaseUrl.endsWith('/')) cleanBaseUrl = cleanBaseUrl.slice(0, -1);
+            fetchUrl = `${cleanBaseUrl}/api/worker/process-resume`;
+          }
+
+          const res = await fetch(fetchUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
