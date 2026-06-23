@@ -205,58 +205,7 @@ export default function HealthClient({ role }) {
         </div>
       </div>
 
-      {/* ── UNIVERSAL API LIMIT TRACKERS ── */}
-      <div className="card animate-slide-up stagger-3" style={{ padding: '2rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-surface-100)', marginBottom: '1.5rem' }}>Live API Trackers (Resets Midnight UTC)</h2>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          
-          {/* QStash */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-surface-200)' }}>Upstash QStash (Background Queue)</span>
-              <span style={{ fontSize: '0.875rem', color: qstashPct >= 100 ? '#ef4444' : 'var(--color-surface-400)' }}>{qstashUsed.toLocaleString()} / 1,000</span>
-            </div>
-            <div style={{ height: 8, background: 'var(--bg-subtle)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: qstashPct >= 100 ? '#ef4444' : '#10b981', width: `${qstashPct}%`, transition: 'width 0.5s ease-out' }}></div>
-            </div>
-          </div>
 
-          {/* Groq */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-surface-200)' }}>Groq API (Primary High-Speed AI)</span>
-              <span style={{ fontSize: '0.875rem', color: groqPct >= 100 ? '#ef4444' : 'var(--color-surface-400)' }}>{groqUsed.toLocaleString()} / 14,400</span>
-            </div>
-            <div style={{ height: 8, background: 'var(--bg-subtle)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: groqPct >= 100 ? '#ef4444' : '#8b5cf6', width: `${groqPct}%`, transition: 'width 0.5s ease-out' }}></div>
-            </div>
-          </div>
-
-          {/* Gemini */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-surface-200)' }}>Gemini API (Fallback & OCR Engine)</span>
-              <span style={{ fontSize: '0.875rem', color: geminiPct >= 100 ? '#ef4444' : 'var(--color-surface-400)' }}>{geminiUsed.toLocaleString()} / 1,500</span>
-            </div>
-            <div style={{ height: 8, background: 'var(--bg-subtle)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: geminiPct >= 100 ? '#ef4444' : '#3b82f6', width: `${geminiPct}%`, transition: 'width 0.5s ease-out' }}></div>
-            </div>
-          </div>
-
-          {/* Google Drive */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-surface-200)' }}>Google Drive API (Storage)</span>
-              <span style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)' }}>{driveUsed.toLocaleString()} / 100,000+</span>
-            </div>
-            <div style={{ height: 8, background: 'var(--bg-subtle)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: '#6366f1', width: `${drivePct}%`, transition: 'width 0.5s ease-out' }}></div>
-            </div>
-          </div>
-
-        </div>
-      </div>
 
 
 
