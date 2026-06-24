@@ -263,7 +263,8 @@ STRICT RULES — follow every rule without exception:
    d) If you are NOT sure something is a degree (because it might be a person's initials or abbreviation), do NOT include it. Empty array [] is better than a wrong degree.
 4. JOB DATES — Format as YYYY-MM. If only year given, use YYYY-01. Current job: end = "present". Order jobs from most recent to oldest.
 5. MISSING DATA — null for strings, [] for arrays. NEVER hallucinate.
-6. JSON SAFETY — No raw newlines or unescaped quotes inside string values. Output must be parseable by JSON.parse().
+6. PHONES — Do NOT extract phone numbers from inside URLs (e.g., linkedin.com/in/john-1234567890).
+7. JSON SAFETY — No raw newlines or unescaped quotes inside string values. Output must be parseable by JSON.parse().
 
 Resume Text:
 ${text.substring(0, 14000)}`;

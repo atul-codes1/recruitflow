@@ -157,8 +157,12 @@ async function handler(request) {
       if (parsedData.emails.length > 0) console.log('[Worker] AI missed email; regex caught it.');
     }
     if (!parsedData.phones || parsedData.phones.length === 0) {
+      // Remove URLs first so we don't accidentally match 10-digit strings inside LinkedIn links
+      const urlRegex = /(?:https?:\/\/)?(?:www\.)?(?:linkedin\.com|github\.com|[\w-]+\.com)[^\s]*/gi;
+      const textWithoutUrls = text.replace(urlRegex, ' ');
       const phoneRegex = /(?:\+?91[-.\s]?)?(?:\+?1[-.\s]?)?(?:\(?\d{3,5}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{4}/g;
-      parsedData.phones = [...new Set((text.match(phoneRegex) || []).map(p => p.trim()))].slice(0, 3);
+      parsedData.phones = [...new Set((textWithoutUrls.match(phoneRegex) || []).map(p => p.trim()))].slice(0, 3);
+      if (parsedData.phones.length > 0) console.log('[Worker] AI missed phone; regex caught it.');
     }
 
     parsedData.parse_method = parseMethod;
