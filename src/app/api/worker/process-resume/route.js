@@ -249,11 +249,18 @@ async function handler(request) {
     // ------------------------------------------------------------------------
     console.log(`[Worker] Committing to database for application ${applicationId}...`);
 
+    function normalizeIndianPhone(phoneStr) {
+      if (!phoneStr) return '';
+      const digitsOnly = phoneStr.replace(/\D/g, '');
+      if (digitsOnly.length >= 10) return digitsOnly.slice(-10);
+      return digitsOnly;
+    }
+
     await supabaseAdmin.from('applications').update({
       // ── Flat identity columns (already existed, now properly populated) ──
       candidate_name:  parsedData.name || 'Unknown Candidate',
       candidate_email: parsedData.emails?.[0] || '',
-      candidate_phone: parsedData.phones?.[0] || '',
+      candidate_phone: normalizeIndianPhone(parsedData.phones?.[0]),
       experience_years: experienceYears,
 
       // ── NEW flat searchable columns ──
