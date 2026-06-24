@@ -19,14 +19,7 @@ export default async function HealthPage() {
 
   return (
     <div className="animate-fade">
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--color-surface-100)', fontFamily: 'var(--font-outfit, var(--font-display))' }}>
-          System Health & Queue Operations
-        </h1>
-        <p style={{ color: 'var(--color-surface-400)', marginTop: '0.5rem' }}>
-          Monitor your AI pipeline limits, queue status, and manage edge-case failures.
-        </p>
-      </div>
+
 
       <HealthClient role={role} />
     </div>
