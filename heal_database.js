@@ -73,14 +73,19 @@ async function runPhoneStandardization() {
     .from('applications')
     .select('id, candidate_phone')
     .not('candidate_phone', 'is', null)
-    .neq('candidate_phone', '');
+    .neq('candidate_phone', '')
+    .limit(10000);
 
   let updatedCount = 0;
   for (const app of allPhones || []) {
     const original = app.candidate_phone;
     const digitsOnly = original.replace(/\D/g, '');
     let normalized = digitsOnly;
-    if (digitsOnly.length >= 10) normalized = digitsOnly.slice(-10);
+    if (digitsOnly.length >= 10) {
+      normalized = digitsOnly.slice(-10);
+    } else {
+      normalized = ''; // Reject anything less than 10 digits
+    }
 
     if (original !== normalized) {
       await supabaseAdmin.from('applications').update({ candidate_phone: normalized }).eq('id', app.id);

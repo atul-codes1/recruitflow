@@ -253,7 +253,7 @@ async function handler(request) {
       if (!phoneStr) return '';
       const digitsOnly = phoneStr.replace(/\D/g, '');
       if (digitsOnly.length >= 10) return digitsOnly.slice(-10);
-      return digitsOnly;
+      return ''; // Reject any number that has fewer than 10 digits
     }
 
     await supabaseAdmin.from('applications').update({
