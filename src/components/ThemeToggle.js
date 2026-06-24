@@ -17,7 +17,7 @@ export default function ThemeToggle() {
   useEffect(() => {
     setMounted(true);
     // Check if theme exists in local storage
-    const storedTheme = localStorage.getItem('theme');
+    const storedTheme = localStorage.getItem('recruitflow-theme');
     if (storedTheme) {
       setTheme(storedTheme);
       document.documentElement.setAttribute('data-theme', storedTheme);
@@ -36,7 +36,7 @@ export default function ThemeToggle() {
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
+    localStorage.setItem('recruitflow-theme', newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
   };
 
@@ -60,7 +60,7 @@ export default function ThemeToggle() {
       <button
         onClick={() => {
           setTheme('light');
-          localStorage.setItem('theme', 'light');
+          localStorage.setItem('recruitflow-theme', 'light');
           document.documentElement.setAttribute('data-theme', 'light');
         }}
         style={{
@@ -84,7 +84,7 @@ export default function ThemeToggle() {
       <button
         onClick={() => {
           setTheme('dark');
-          localStorage.setItem('theme', 'dark');
+          localStorage.setItem('recruitflow-theme', 'dark');
           document.documentElement.setAttribute('data-theme', 'dark');
         }}
         style={{
