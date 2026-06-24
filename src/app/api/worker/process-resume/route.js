@@ -148,6 +148,19 @@ async function handler(request) {
       parseMethod = 'regex';
     }
 
+    // ------------------------------------------------------------------------
+    // 3.5 BULLETPROOF REGEX FALLBACK (Fills in blanks the AI missed)
+    // ------------------------------------------------------------------------
+    if (!parsedData.emails || parsedData.emails.length === 0) {
+      const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+      parsedData.emails = [...new Set(text.match(emailRegex) || [])];
+      if (parsedData.emails.length > 0) console.log('[Worker] AI missed email; regex caught it.');
+    }
+    if (!parsedData.phones || parsedData.phones.length === 0) {
+      const phoneRegex = /(?:\+?91[-.\s]?)?(?:\+?1[-.\s]?)?(?:\(?\d{3,5}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{4}/g;
+      parsedData.phones = [...new Set((text.match(phoneRegex) || []).map(p => p.trim()))].slice(0, 3);
+    }
+
     parsedData.parse_method = parseMethod;
     parsedData.parsed_at    = new Date().toISOString();
 
