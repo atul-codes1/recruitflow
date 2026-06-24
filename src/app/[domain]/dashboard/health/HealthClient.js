@@ -148,20 +148,20 @@ export default function HealthClient({ role }) {
       </div>
 
       {/* ── CORE METRICS ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
         
         {/* Total Processed */}
         <div style={{ 
           background: 'linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
           border: '1px solid var(--border-light)', borderRadius: '24px', padding: '1.5rem',
-          position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '0.5rem'
+          position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem'
         }}>
           <div style={{ position: 'absolute', top: 0, right: 0, width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>✅</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative', zIndex: 1 }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>✅</div>
             <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Processed</h3>
           </div>
-          <p style={{ fontSize: '3rem', fontWeight: 800, color: 'var(--color-surface-100)', lineHeight: 1, marginTop: '0.5rem' }}>
+          <p style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--color-surface-100)', lineHeight: 1, position: 'relative', zIndex: 1 }}>
             {data.counts.completed || 0}
           </p>
         </div>
@@ -170,14 +170,14 @@ export default function HealthClient({ role }) {
         <div style={{ 
           background: 'linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
           border: '1px solid var(--border-light)', borderRadius: '24px', padding: '1.5rem',
-          position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '0.5rem'
+          position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem'
         }}>
           <div style={{ position: 'absolute', top: 0, right: 0, width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>⏳</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative', zIndex: 1 }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>⏳</div>
             <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>In Queue</h3>
           </div>
-          <p style={{ fontSize: '3rem', fontWeight: 800, color: '#3b82f6', lineHeight: 1, marginTop: '0.5rem' }}>
+          <p style={{ fontSize: '2.5rem', fontWeight: 800, color: '#3b82f6', lineHeight: 1, position: 'relative', zIndex: 1 }}>
             {data.counts.queued || 0}
           </p>
         </div>
@@ -186,14 +186,14 @@ export default function HealthClient({ role }) {
         <div style={{ 
           background: 'linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
           border: '1px solid var(--border-light)', borderRadius: '24px', padding: '1.5rem',
-          position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '0.5rem'
+          position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem'
         }}>
           <div style={{ position: 'absolute', top: 0, right: 0, width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>☁️</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative', zIndex: 1 }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>☁️</div>
             <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Uploading</h3>
           </div>
-          <p style={{ fontSize: '3rem', fontWeight: 800, color: '#f59e0b', lineHeight: 1, marginTop: '0.5rem' }}>
+          <p style={{ fontSize: '2.5rem', fontWeight: 800, color: '#f59e0b', lineHeight: 1, position: 'relative', zIndex: 1 }}>
             {data.counts.uploading || 0}
           </p>
         </div>
@@ -203,14 +203,14 @@ export default function HealthClient({ role }) {
           background: data.counts.failed > 0 ? 'linear-gradient(145deg, rgba(239, 68, 68, 0.05), rgba(239, 68, 68, 0.01))' : 'linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
           border: data.counts.failed > 0 ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--border-light)', 
           borderRadius: '24px', padding: '1.5rem',
-          position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '0.5rem'
+          position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem'
         }}>
           <div style={{ position: 'absolute', top: 0, right: 0, width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(239, 68, 68, 0.15) 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>🛑</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative', zIndex: 1 }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>🛑</div>
             <h3 style={{ fontSize: '0.875rem', color: 'var(--color-surface-400)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>AI Failures</h3>
           </div>
-          <p style={{ fontSize: '3rem', fontWeight: 800, color: '#ef4444', lineHeight: 1, marginTop: '0.5rem' }}>
+          <p style={{ fontSize: '2.5rem', fontWeight: 800, color: '#ef4444', lineHeight: 1, position: 'relative', zIndex: 1 }}>
             {data.counts.failed || 0}
           </p>
         </div>
