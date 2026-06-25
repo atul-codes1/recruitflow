@@ -80,8 +80,34 @@ export function extractWithRegex(text) {
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   const emails = [...new Set(text.match(emailRegex) || [])];
 
-  const phoneRegex = /(?:\+?91[-.\s]?)?(?:\+?1[-.\s]?)?(?:\(?\d{3,5}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{4}/g;
-  const phones = [...new Set((text.match(phoneRegex) || []).map(p => p.trim()))].slice(0, 3);
+  // ── PHONE EXTRACTION (Bulletproof Indian Phone Pipeline) ──
+  // Step 1: Nuke all URLs so we never pick numbers from linkedin.com/in/john-1234567890
+  const cleanText = text
+    .replace(/(?:https?:\/\/)[^\s]+/gi, ' ')
+    .replace(/(?:www\.)[^\s]+/gi, ' ')
+    .replace(/linkedin\.com[^\s]*/gi, ' ')
+    .replace(/github\.com[^\s]*/gi, ' ')
+    .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, ' '); // also remove emails
+
+  // Step 2: Match Indian phone patterns — must have 10 digits starting with 6/7/8/9
+  // Supports: +91 98765 43210, 091-9876543210, 0 98765-43210, 9876543210, +91-9876-543-210
+  const indianPhoneRegex = /(?:(?:\+?91|0)[\s.-]?)?[6-9]\d[\s.-]?\d{3,4}[\s.-]?\d{4}/g;
+  const rawMatches = cleanText.match(indianPhoneRegex) || [];
+
+  // Step 3: Normalize each match to exactly 10 digits and validate
+  const validPhones = [];
+  for (const raw of rawMatches) {
+    const digits = raw.replace(/\D/g, '');
+    // Extract last 10 digits (strips country code)
+    const tenDigit = digits.length >= 10 ? digits.slice(-10) : null;
+    if (!tenDigit) continue;
+    // Must start with 6, 7, 8, or 9 (valid Indian mobile)
+    if (!/^[6-9]/.test(tenDigit)) continue;
+    // Reject obvious non-phones: all same digit, sequential, or common zip patterns
+    if (/^(\d)\1{9}$/.test(tenDigit)) continue; // 9999999999
+    if (!validPhones.includes(tenDigit)) validPhones.push(tenDigit);
+  }
+  const phones = validPhones.slice(0, 3); // Keep up to 3 numbers
 
   const linkedinRegex = /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9_-]+\/?/gi;
   const githubRegex   = /(?:https?:\/\/)?(?:www\.)?github\.com\/[a-zA-Z0-9_-]+\/?/gi;
@@ -263,7 +289,16 @@ STRICT RULES — follow every rule without exception:
    d) If you are NOT sure something is a degree (because it might be a person's initials or abbreviation), do NOT include it. Empty array [] is better than a wrong degree.
 4. JOB DATES — Format as YYYY-MM. If only year given, use YYYY-01. Current job: end = "present". Order jobs from most recent to oldest.
 5. MISSING DATA — null for strings, [] for arrays. NEVER hallucinate.
-6. PHONES — Do NOT extract phone numbers from inside URLs (e.g., linkedin.com/in/john-1234567890).
+6. PHONES — CRITICAL RULES FOR INDIAN PHONE NUMBERS:
+   a) An Indian mobile number is EXACTLY 10 digits and ALWAYS starts with 6, 7, 8, or 9.
+   b) Extract the ACTUAL contact phone number of the candidate. Look near the top of the resume, near the name/email/address section.
+   c) Do NOT extract numbers from inside URLs (e.g., linkedin.com/in/john-1234567890).
+   d) Do NOT extract zip codes (e.g., 110001, 400001) — these are 6 digits and are NOT phone numbers.
+   e) Do NOT extract dates, year numbers, enrollment numbers, or roll numbers.
+   f) If the candidate has a country code like +91, 091, or 0, strip it. Just return the raw 10-digit number.
+   g) If the candidate lists multiple phone numbers, include ALL of them in the phones array.
+   h) Format each phone as a plain 10-digit string: "9876543210" (no spaces, hyphens, or country code).
+   i) If no valid 10-digit mobile number is found, return an empty array [].
 7. JSON SAFETY — No raw newlines or unescaped quotes inside string values. Output must be parseable by JSON.parse().
 
 Resume Text:

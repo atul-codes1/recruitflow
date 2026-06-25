@@ -157,12 +157,27 @@ async function handler(request) {
       if (parsedData.emails.length > 0) console.log('[Worker] AI missed email; regex caught it.');
     }
     if (!parsedData.phones || parsedData.phones.length === 0) {
-      // Remove URLs first so we don't accidentally match 10-digit strings inside LinkedIn links
-      const urlRegex = /(?:https?:\/\/)?(?:www\.)?(?:linkedin\.com|github\.com|[\w-]+\.com)[^\s]*/gi;
-      const textWithoutUrls = text.replace(urlRegex, ' ');
-      const phoneRegex = /(?:\+?91[-.\s]?)?(?:\+?1[-.\s]?)?(?:\(?\d{3,5}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{4}/g;
-      parsedData.phones = [...new Set((textWithoutUrls.match(phoneRegex) || []).map(p => p.trim()))].slice(0, 3);
-      if (parsedData.phones.length > 0) console.log('[Worker] AI missed phone; regex caught it.');
+      // Remove URLs and emails first so we don't match numbers inside them
+      const cleanedText = text
+        .replace(/(?:https?:\/\/)[^\s]+/gi, ' ')
+        .replace(/(?:www\.)[^\s]+/gi, ' ')
+        .replace(/linkedin\.com[^\s]*/gi, ' ')
+        .replace(/github\.com[^\s]*/gi, ' ')
+        .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, ' ');
+      // Strict Indian phone: must start with 6-9, exactly 10 digits
+      const indianPhoneRegex = /(?:(?:\+?91|0)[\s.-]?)?[6-9]\d[\s.-]?\d{3,4}[\s.-]?\d{4}/g;
+      const rawMatches = cleanedText.match(indianPhoneRegex) || [];
+      const validPhones = [];
+      for (const raw of rawMatches) {
+        const digits = raw.replace(/\D/g, '');
+        const tenDigit = digits.length >= 10 ? digits.slice(-10) : null;
+        if (!tenDigit) continue;
+        if (!/^[6-9]/.test(tenDigit)) continue;
+        if (/^(\d)\1{9}$/.test(tenDigit)) continue;
+        if (!validPhones.includes(tenDigit)) validPhones.push(tenDigit);
+      }
+      parsedData.phones = validPhones.slice(0, 3);
+      if (parsedData.phones.length > 0) console.log('[Worker] AI missed phone; strict regex caught it.');
     }
 
     parsedData.parse_method = parseMethod;
@@ -252,15 +267,30 @@ async function handler(request) {
     function normalizeIndianPhone(phoneStr) {
       if (!phoneStr) return '';
       const digitsOnly = phoneStr.replace(/\D/g, '');
-      if (digitsOnly.length >= 10) return digitsOnly.slice(-10);
-      return ''; // Reject any number that has fewer than 10 digits
+      const tenDigit = digitsOnly.length >= 10 ? digitsOnly.slice(-10) : null;
+      if (!tenDigit) return '';
+      // Must start with 6, 7, 8, or 9 (valid Indian mobile)
+      if (!/^[6-9]/.test(tenDigit)) return '';
+      // Reject all-same-digit numbers like 9999999999
+      if (/^(\d)\1{9}$/.test(tenDigit)) return '';
+      return tenDigit;
+    }
+
+    // Pick the FIRST valid phone from the AI's output (it may return multiple)
+    let bestPhone = '';
+    for (const p of (parsedData.phones || [])) {
+      const normalized = normalizeIndianPhone(p);
+      if (normalized) {
+        bestPhone = normalized;
+        break;
+      }
     }
 
     await supabaseAdmin.from('applications').update({
       // ── Flat identity columns (already existed, now properly populated) ──
       candidate_name:  parsedData.name || 'Unknown Candidate',
       candidate_email: parsedData.emails?.[0] || '',
-      candidate_phone: normalizeIndianPhone(parsedData.phones?.[0]),
+      candidate_phone: bestPhone,
       experience_years: experienceYears,
 
       // ── NEW flat searchable columns ──
