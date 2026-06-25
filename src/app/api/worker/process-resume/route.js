@@ -299,7 +299,7 @@ async function handler(request) {
          let lastPrefix;
          do {
            lastPrefix = prefix;
-           prefix = prefix.replace(/.*?(phone|alt|envelope|linkedin|github|portfolio|in\/|www\.|india\.|mobile|tel|contact)/i, '');
+           prefix = prefix.replace(/^(phone|alt|envelope|linkedin|github|portfolio|in\/|www\.|india\.|mobile|tel|contact|-|:|\s)+/i, '');
            prefix = prefix.replace(/^[+0-9-]{10,}/, ''); 
            prefix = prefix.replace(/^[.\-_]+/, ''); 
          } while (prefix !== lastPrefix);
