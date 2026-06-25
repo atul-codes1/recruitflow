@@ -167,7 +167,7 @@ async function handler(request) {
 
       const recoveredPhones = [];
       // Pattern A: With +91/0 prefix
-      const withPrefix = /(?:\+?91|0)[\s.\-]?([6-9][\d\s.\-]{8,14}\d)/g;
+      const withPrefix = /(?:\+?91|0)[\s.\-]*([6-9][\d\s.\-]{8,16}\d)/g;
       let pm;
       while ((pm = withPrefix.exec(cleanedText)) !== null) {
         const digits = pm[1].replace(/\D/g, '');
@@ -176,7 +176,7 @@ async function handler(request) {
         }
       }
       // Pattern B: Bare number
-      const bare = /(?<!\d)([6-9][\d\s.\-]{8,14}\d)(?!\d)/g;
+      const bare = /(?<!\d)([6-9][\d\s.\-]{8,16}\d)(?!\d)/g;
       while ((pm = bare.exec(cleanedText)) !== null) {
         const digits = pm[1].replace(/\D/g, '');
         if (digits.length === 10 && /^[6-9]/.test(digits) && !/^(\d)\1{9}$/.test(digits)) {

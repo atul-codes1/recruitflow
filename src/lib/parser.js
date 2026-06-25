@@ -93,8 +93,8 @@ export function extractWithRegex(text) {
   // Handles: +91 85218 43881, +91-97262-75280, 9876543210, 091-9876543210, etc.
   const phones = [];
 
-  // Pattern A: With country code prefix
-  const withPrefix = /(?:\+?91|0)[\s.\-]?([6-9][\d\s.\-]{8,14}\d)/g;
+  // Pattern A: With country code prefix (handles +91 - 81084 68296, +91--9876543210, etc.)
+  const withPrefix = /(?:\+?91|0)[\s.\-]*([6-9][\d\s.\-]{8,16}\d)/g;
   let m;
   while ((m = withPrefix.exec(cleanText)) !== null) {
     const digits = m[1].replace(/\D/g, '');
@@ -104,7 +104,7 @@ export function extractWithRegex(text) {
   }
 
   // Pattern B: Bare 10-digit number starting with 6-9 (no country code)
-  const bare = /(?<!\d)([6-9][\d\s.\-]{8,14}\d)(?!\d)/g;
+  const bare = /(?<!\d)([6-9][\d\s.\-]{8,16}\d)(?!\d)/g;
   while ((m = bare.exec(cleanText)) !== null) {
     const digits = m[1].replace(/\D/g, '');
     if (digits.length === 10 && /^[6-9]/.test(digits) && !/^(\d)\1{9}$/.test(digits)) {
