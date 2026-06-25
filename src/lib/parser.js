@@ -89,25 +89,28 @@ export function extractWithRegex(text) {
     .replace(/github\.com[^\s]*/gi, ' ')
     .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, ' '); // also remove emails
 
-  // Step 2: Match Indian phone patterns — must have 10 digits starting with 6/7/8/9
-  // Supports: +91 98765 43210, 091-9876543210, 0 98765-43210, 9876543210, +91-9876-543-210
-  const indianPhoneRegex = /(?:(?:\+?91|0)[\s.-]?)?[6-9]\d[\s.-]?\d{3,4}[\s.-]?\d{4}/g;
-  const rawMatches = cleanText.match(indianPhoneRegex) || [];
+  // Step 2: Find phone numbers with flexible separator handling
+  // Handles: +91 85218 43881, +91-97262-75280, 9876543210, 091-9876543210, etc.
+  const phones = [];
 
-  // Step 3: Normalize each match to exactly 10 digits and validate
-  const validPhones = [];
-  for (const raw of rawMatches) {
-    const digits = raw.replace(/\D/g, '');
-    // Extract last 10 digits (strips country code)
-    const tenDigit = digits.length >= 10 ? digits.slice(-10) : null;
-    if (!tenDigit) continue;
-    // Must start with 6, 7, 8, or 9 (valid Indian mobile)
-    if (!/^[6-9]/.test(tenDigit)) continue;
-    // Reject obvious non-phones: all same digit, sequential, or common zip patterns
-    if (/^(\d)\1{9}$/.test(tenDigit)) continue; // 9999999999
-    if (!validPhones.includes(tenDigit)) validPhones.push(tenDigit);
+  // Pattern A: With country code prefix
+  const withPrefix = /(?:\+?91|0)[\s.\-]?([6-9][\d\s.\-]{8,14}\d)/g;
+  let m;
+  while ((m = withPrefix.exec(cleanText)) !== null) {
+    const digits = m[1].replace(/\D/g, '');
+    if (digits.length === 10 && /^[6-9]/.test(digits) && !/^(\d)\1{9}$/.test(digits)) {
+      if (!phones.includes(digits)) phones.push(digits);
+    }
   }
-  const phones = validPhones.slice(0, 3); // Keep up to 3 numbers
+
+  // Pattern B: Bare 10-digit number starting with 6-9 (no country code)
+  const bare = /(?<!\d)([6-9][\d\s.\-]{8,14}\d)(?!\d)/g;
+  while ((m = bare.exec(cleanText)) !== null) {
+    const digits = m[1].replace(/\D/g, '');
+    if (digits.length === 10 && /^[6-9]/.test(digits) && !/^(\d)\1{9}$/.test(digits)) {
+      if (!phones.includes(digits)) phones.push(digits);
+    }
+  }
 
   const linkedinRegex = /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9_-]+\/?/gi;
   const githubRegex   = /(?:https?:\/\/)?(?:www\.)?github\.com\/[a-zA-Z0-9_-]+\/?/gi;

@@ -164,19 +164,27 @@ async function handler(request) {
         .replace(/linkedin\.com[^\s]*/gi, ' ')
         .replace(/github\.com[^\s]*/gi, ' ')
         .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, ' ');
-      // Strict Indian phone: must start with 6-9, exactly 10 digits
-      const indianPhoneRegex = /(?:(?:\+?91|0)[\s.-]?)?[6-9]\d[\s.-]?\d{3,4}[\s.-]?\d{4}/g;
-      const rawMatches = cleanedText.match(indianPhoneRegex) || [];
-      const validPhones = [];
-      for (const raw of rawMatches) {
-        const digits = raw.replace(/\D/g, '');
-        const tenDigit = digits.length >= 10 ? digits.slice(-10) : null;
-        if (!tenDigit) continue;
-        if (!/^[6-9]/.test(tenDigit)) continue;
-        if (/^(\d)\1{9}$/.test(tenDigit)) continue;
-        if (!validPhones.includes(tenDigit)) validPhones.push(tenDigit);
+
+      const recoveredPhones = [];
+      // Pattern A: With +91/0 prefix
+      const withPrefix = /(?:\+?91|0)[\s.\-]?([6-9][\d\s.\-]{8,14}\d)/g;
+      let pm;
+      while ((pm = withPrefix.exec(cleanedText)) !== null) {
+        const digits = pm[1].replace(/\D/g, '');
+        if (digits.length === 10 && /^[6-9]/.test(digits) && !/^(\d)\1{9}$/.test(digits)) {
+          if (!recoveredPhones.includes(digits)) recoveredPhones.push(digits);
+        }
       }
-      parsedData.phones = validPhones.slice(0, 3);
+      // Pattern B: Bare number
+      const bare = /(?<!\d)([6-9][\d\s.\-]{8,14}\d)(?!\d)/g;
+      while ((pm = bare.exec(cleanedText)) !== null) {
+        const digits = pm[1].replace(/\D/g, '');
+        if (digits.length === 10 && /^[6-9]/.test(digits) && !/^(\d)\1{9}$/.test(digits)) {
+          if (!recoveredPhones.includes(digits)) recoveredPhones.push(digits);
+        }
+      }
+
+      parsedData.phones = recoveredPhones.slice(0, 3);
       if (parsedData.phones.length > 0) console.log('[Worker] AI missed phone; strict regex caught it.');
     }
 
