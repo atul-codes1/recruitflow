@@ -284,6 +284,42 @@ async function handler(request) {
       return tenDigit;
     }
 
+    function normalizeEmail(text) {
+      if (!text) return '';
+      const regex = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.(?:com|in|co\.in|net|org|edu|gov|io|co|me|ai|dev))/i;
+      const match = text.match(regex);
+      if (match) {
+         let clean = match[1];
+         clean = clean.replace(/\.$/, '');
+         
+         const atIdx = clean.indexOf('@');
+         let prefix = clean.substring(0, atIdx);
+         const domain = clean.substring(atIdx);
+         
+         let lastPrefix;
+         do {
+           lastPrefix = prefix;
+           prefix = prefix.replace(/.*?(phone|alt|envelope|linkedin|github|portfolio|in\/|www\.|india\.|mobile|tel|contact)/i, '');
+           prefix = prefix.replace(/^[+0-9-]{10,}/, ''); 
+           prefix = prefix.replace(/^[.\-_]+/, ''); 
+         } while (prefix !== lastPrefix);
+         
+         if (!prefix) return ''; 
+         return (prefix + domain).toLowerCase();
+      }
+      return '';
+    }
+
+    // Pick the FIRST valid email from the AI's output
+    let bestEmail = '';
+    for (const e of (parsedData.emails || [])) {
+      const normalized = normalizeEmail(e);
+      if (normalized) {
+        bestEmail = normalized;
+        break;
+      }
+    }
+
     // Pick the FIRST valid phone from the AI's output (it may return multiple)
     let bestPhone = '';
     for (const p of (parsedData.phones || [])) {
@@ -297,7 +333,7 @@ async function handler(request) {
     await supabaseAdmin.from('applications').update({
       // ── Flat identity columns (already existed, now properly populated) ──
       candidate_name:  parsedData.name || 'Unknown Candidate',
-      candidate_email: parsedData.emails?.[0] || '',
+      candidate_email: bestEmail,
       candidate_phone: bestPhone,
       experience_years: experienceYears,
 
